@@ -231,7 +231,17 @@ export const resolverVerificacion = onCall(async (request) => {
   }
 });
 
-export const caducarVerificaciones = onSchedule({ schedule: "every day 04:00", timeZone: "Europe/Madrid" }, async () => {
+/**
+ * Scheduled functions run in europe-west1 (Belgium): Cloud Scheduler is not available in
+ * europe-southwest1. The data stays in Madrid (docs/decisiones.md).
+ */
+export const REGION_PROGRAMADAS = "europe-west1";
+
+export const caducarVerificaciones = onSchedule({
+  schedule: "every day 04:00",
+  timeZone: "Europe/Madrid",
+  region: REGION_PROGRAMADAS,
+}, async () => {
   const n = await caducarPendientes(db(), getStorage().bucket(), new Date());
   logger.info("Solicitudes de verificación caducadas", { n });
 });
