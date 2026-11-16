@@ -16,8 +16,8 @@ local.properties
 .DS_Store
 
 # Firebase: never commit the app config or secrets
-google-services.json
-**/google-services.json
+google-services*.json
+**/google-services*.json
 GoogleService-Info.plist
 *.keystore
 *.jks
