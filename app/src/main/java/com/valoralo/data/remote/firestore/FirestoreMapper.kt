@@ -45,6 +45,7 @@ fun Map<String, Any?>.aCentro(id: String): Centro = Centro(
         Ensenanza(nivel, m["nombre"] as? String ?: nivel)
     },
     departamentos = lista("departamentos").filterIsInstance<String>(),
+    departamentosFuente = textoONull("departamentosFuente"),
     stats = mapa("stats").let { s ->
         Stats(
             total = s.grupo("total"),
