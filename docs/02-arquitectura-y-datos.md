@@ -94,10 +94,13 @@ denuncias/{codigo}_{autorUid}_{denuncianteUid}   // una por usuario y reseña; s
   { centro, valoracionUid, denuncianteUid, motivo: INSULTOS | NOMBRE_PROPIO | DATOS_PERSONALES | FALSA_O_SPAM | OTRO,
     fecha, estado: "PENDIENTE" | "RESUELTA", decision?, resuelta? }
 
-verificaciones/{uid}                     // solo backend y administradores
-  nombreDeclarado, csvHash, pdfPath?, estado: "PENDIENTE"|"APROBADA"|"RECHAZADA",
-  motivoRechazo?, fechaSolicitud, fechaRevision, revisorUid
-csvUsados/{csvHash} { uid, fecha }       // evita reutilizar un documento
+verificaciones/{uid}                     // lo escribe solo el backend; lo leen el propio usuario y los administradores
+  estado: "PENDIENTE"|"APROBADA"|"RECHAZADA"|"CADUCADA", fechaSolicitud, fechaRevision, revisorUid,
+  motivoRechazo?, csvHash, tienePdf, solicitudes: [fechas de los últimos 30 días]
+verificaciones/{uid}/privado/solicitud   // solo administradores; solo mientras está PENDIENTE
+  nombreDeclarado, csv (en claro, para comprobarlo en la web de la Junta), pdfPath?
+csvUsados/{csvHash} { uid, fecha, resultado: "APROBADA"|"RECHAZADA" }   // evita reutilizar un documento
+// Detalle del flujo, límites y caducidad: doc 04.
 
 Cloud Functions (functions/, TypeScript, región europe-southwest1)
 

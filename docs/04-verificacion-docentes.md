@@ -15,6 +15,14 @@ que el nombre coincide con el que ha escrito el usuario;
 que el documento es reciente: expedido después de crear la cuenta en Valoralo. Esto impide reutilizar documentos antiguos o de otra persona.
 Si todo cuadra, una Cloud Function pone el custom claim rol = DOCENTE, verificado = true y opcionalmente centroActual.
 Se borra el PDF (si lo había) y se guarda solo: hash del CSV, fecha y resultado. El hash impide usar el mismo documento en dos cuentas.
+
+Implementación (Fase 4)
+Datos: verificaciones/{uid} (estado PENDIENTE | APROBADA | RECHAZADA | CADUCADA, fechas, motivoRechazo, csvHash, tienePdf, solicitudes de los últimos 30 días) lo lee el propio usuario y los administradores. verificaciones/{uid}/privado/solicitud (nombre declarado, CSV en claro y ruta del PDF) solo lo leen los administradores y solo existe mientras la solicitud está PENDIENTE: al resolverla o caducar se borra y queda el hash. csvUsados/{hash} guarda los CSV aprobados y también los rechazados: ninguno se puede volver a usar. Mientras hay una solicitud pendiente con un CSV, ninguna otra cuenta puede usarlo.
+Funciones (europe-southwest1): solicitarVerificacion (usuario; App Check preparado), resolverVerificacion (solo administradores), caducarVerificaciones (diaria, 04:00 Madrid).
+Límites: una solicitud pendiente a la vez; como máximo 3 solicitudes por usuario en 30 días; las pendientes caducan a los 30 días y se borran sus datos y el PDF. Tras un rechazo se puede pedir de nuevo con otro documento.
+PDF: opcional, en Cloud Storage (verificaciones/{uid}/…pdf, < 5 MB, sin sobrescribir); solo lo leen los administradores y se borra al resolver o caducar.
+Al aprobar: custom claims rol = DOCENTE y verificado = true, usuarios/{uid} con rol DOCENTE, verificado true y centroActualCodigo opcional; sus reseñas con rolAutor OTRO pasan a DOCENTE verificado (las de ESTUDIANTE no cambian) y se recalculan las notas.
+Administradores: custom claim admin = true (tools/admin/hacer_admin.py). Panel en el sitio de Hosting valoralo-admin (admin/): acceso con Google y la marca admin; los demás ven "Sin acceso".
 Por qué así
 No depende de dominios de correo, que comparten alumnado y profesorado.
 Un documento con CSV no se puede falsificar: el original se consulta en la sede de la Junta.
