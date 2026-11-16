@@ -62,18 +62,25 @@ usuarios/{uid}
   // La fecha de nacimiento se pide para comprobar la edad, pero no se guarda.
 
 centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
-  uid, alias, rolAutor, verificado, fecha, editada,
+  uid, alias, rolAutor, verificado, fecha (alta), actualizada, editada,
   centro:        { nota 1–5, gestion?, convivencia?, comunicacion? },
   instalaciones: { nota 1–5, aulas?, equipamiento?, limpieza?, accesibilidad? },
-  profesorado:   [{ departamento, nota 1–5 }],
-  texto, estado: "PUBLICADA" | "EN_REVISION" | "OCULTA"
+  profesorado:   [{ departamento, nota 1–5, otro?: true }],   // otro = "Otro departamento" (texto libre, filtrado)
+  texto (opcional, ≤ 1.000 caracteres), estado: "PUBLICADA" | "EN_REVISION" | "OCULTA",
+  revision?: { origen: "FILTRO" | "DENUNCIAS" | "MODERACION", fragmentos: [{ inicio, fin, texto, motivo }] },
+  moderacion?: { decision, fecha, nota }
+  // La escribe solo la función publicarValoracion (valida, filtra y toma rolAutor del perfil; al
+  // editar mantiene fecha y rolAutor). El autor puede leer la suya en cualquier estado y borrarla;
+  // los demás solo leen las PUBLICADA.
+
+centros/{codigo}.catalogoDoc            // documento catalogo/{provincia}-{parte} del centro (lo escribe el script)
 
 config/catalogo     { version, partes: ["almeria-1", ...] }   // la escribe el script de importación; solo cambia al importar
 catalogo/{provincia}-{parte}                  // catálogo resumido para Inicio y los filtros (lectura pública)
   provincia, parte, partes,
   centros: [{ codigo, nombre, tipo, localidad, municipio, niveles: [String], nota (stats.total.global), resenas (stats.total.n) }]
   // Una parte por provincia mientras quepa con margen bajo 1 MiB (Sevilla, la mayor, ~200 KiB); si no, se divide.
-  // Fase 5: onValoracionWrite actualizará también la nota y el nº de reseñas del centro en su documento de catálogo.
+  // alEscribirValoracion actualiza la nota y el nº de reseñas del centro en su documento de catálogo.
 config/departamentos { porTipo: { "IES": [...], ... } }   // listas estándar por tipo
 
 Caché del catálogo (Room): Inicio lee los centros (con sus notas) de una caché local. En cada arranque
@@ -83,7 +90,9 @@ tiene más de 24 horas o si cambia el formato de la caché. Sin red se muestra l
 centro y sus reseñas se leen siempre en directo de Firestore.
 
 usuarios/{uid}/favoritos/{codigo}
-denuncias/{id}  { centro, valoracionUid, autorUid, motivo, fecha, estado }
+denuncias/{codigo}_{autorUid}_{denuncianteUid}   // una por usuario y reseña; solo backend
+  { centro, valoracionUid, denuncianteUid, motivo: INSULTOS | NOMBRE_PROPIO | DATOS_PERSONALES | FALSA_O_SPAM | OTRO,
+    fecha, estado: "PENDIENTE" | "RESUELTA", decision?, resuelta? }
 
 verificaciones/{uid}                     // solo backend y administradores
   nombreDeclarado, csvHash, pdfPath?, estado: "PENDIENTE"|"APROBADA"|"RECHAZADA",
