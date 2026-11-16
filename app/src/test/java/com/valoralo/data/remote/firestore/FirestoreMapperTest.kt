@@ -84,6 +84,35 @@ class FirestoreMapperTest {
     }
 
     @Test
+    fun `convierte un documento de catalogo resumido`() {
+        val documento = mapOf<String, Any?>(
+            "provincia" to "Huelva", "parte" to 1L, "partes" to 1L,
+            "centros" to listOf(
+                mapOf(
+                    "codigo" to "21000048", "nombre" to "CEIP Profesor Tierno Galván", "tipo" to "CEIP",
+                    "localidad" to "Corrales", "municipio" to "Aljaraque",
+                    "niveles" to listOf("Infantil", "Primaria"), "nota" to 4.25, "resenas" to 4L,
+                ),
+                mapOf("codigo" to "21000001", "nombre" to "IES Sin Notas", "tipo" to "IES",
+                    "localidad" to "Huelva", "municipio" to "Huelva", "niveles" to emptyList<String>(),
+                    "nota" to null, "resenas" to 0L),
+                mapOf("nombre" to "sin código, se descarta"),
+            ),
+        )
+        val centros = documento.aCentrosDeCatalogo()
+        assertEquals(listOf("21000048", "21000001"), centros.map { it.codigo })
+        val ceip = centros.first()
+        assertEquals("CEIP Profesor Tierno Galván", ceip.nombre)
+        assertEquals("CEIP", ceip.tipo)
+        assertEquals("Corrales", ceip.localidad)
+        assertEquals("Aljaraque", ceip.municipio)
+        assertEquals("Huelva", ceip.provincia)
+        assertEquals(listOf(Ensenanza("Infantil", "Infantil"), Ensenanza("Primaria", "Primaria")), ceip.ensenanzas)
+        assertEquals(StatsGrupo(n = 4, global = 4.25), ceip.stats.total)
+        assertEquals(StatsGrupo(), centros[1].stats.total)
+    }
+
+    @Test
     fun `convierte una valoracion`() {
         val fecha = Date.from(LocalDate.of(2026, 3, 9).atStartOfDay(ZoneId.of("Europe/Madrid")).plusHours(10).toInstant())
         val valoracion = mapOf<String, Any?>(

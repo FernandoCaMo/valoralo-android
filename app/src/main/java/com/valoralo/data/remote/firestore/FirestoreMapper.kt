@@ -60,6 +60,31 @@ fun Map<String, Any?>.aCentro(id: String): Centro = Centro(
     },
 )
 
+/**
+ * catalogo/{provincia}-{parte} → summarised centros (what Inicio and its filters need).
+ * Entries without codigo are skipped.
+ */
+fun Map<String, Any?>.aCentrosDeCatalogo(): List<Centro> {
+    val provincia = texto("provincia")
+    return lista("centros").mapNotNull { item ->
+        @Suppress("UNCHECKED_CAST")
+        val c = item as? Map<String, Any?> ?: return@mapNotNull null
+        val codigo = c["codigo"] as? String ?: return@mapNotNull null
+        Centro(
+            codigo = codigo,
+            nombre = c.texto("nombre"),
+            tipo = c.texto("tipo"),
+            direccion = "",
+            cp = "",
+            localidad = c.texto("localidad"),
+            municipio = c.texto("municipio"),
+            provincia = provincia,
+            ensenanzas = c.lista("niveles").filterIsInstance<String>().map { Ensenanza(it, it) },
+            stats = Stats(total = StatsGrupo(n = c.entero("resenas") ?: 0, global = c.decimal("nota"))),
+        )
+    }
+}
+
 /** Returns null when the document lacks the minimum data (role and both notes). */
 fun Map<String, Any?>.aValoracion(id: String): Valoracion? {
     val rol = enumONull<Rol>(get("rolAutor")) ?: return null

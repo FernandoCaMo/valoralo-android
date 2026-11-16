@@ -3,6 +3,7 @@ package com.valoralo.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.valoralo.data.repository.CentroRepository
+import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.PROVINCIAS_ANDALUCIA
 import com.valoralo.domain.usecase.FiltroCentros
@@ -29,6 +30,8 @@ data class HomeUiState(
     val cargando: Boolean = true,
     /** The catalogue could not be loaded (no network, permissions…). */
     val error: Boolean = false,
+    /** Non-null while the catalogue is being downloaded (first launch or refresh). */
+    val progreso: ProgresoDescarga? = null,
     val texto: String = "",
     val filtro: FiltroCentros = FiltroCentros(),
     val centros: List<Centro> = emptyList(),
@@ -43,7 +46,7 @@ class HomeViewModel @Inject constructor(
     private val texto = MutableStateFlow("")
     private val filtro = MutableStateFlow(FiltroCentros())
 
-    val uiState: StateFlow<HomeUiState> =
+    private val catalogo: StateFlow<HomeUiState> =
         combine(repository.observarCentros(), texto, filtro) { centros, texto, filtro ->
             HomeUiState(
                 cargando = false,
@@ -53,6 +56,10 @@ class HomeViewModel @Inject constructor(
                 opciones = opcionesPara(centros, filtro),
             )
         }.catch { emit(HomeUiState(cargando = false, error = true)) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+
+    val uiState: StateFlow<HomeUiState> =
+        combine(catalogo, repository.progresoDescarga) { estado, progreso -> estado.copy(progreso = progreso) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun onTextoChange(nuevo: String) = texto.update { nuevo }

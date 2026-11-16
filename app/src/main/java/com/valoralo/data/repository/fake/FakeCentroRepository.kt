@@ -1,6 +1,9 @@
 package com.valoralo.data.repository.fake
 
 import com.valoralo.data.repository.CentroRepository
+import com.valoralo.data.repository.ProgresoDescarga
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.Valoracion
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +20,8 @@ class FakeCentroRepository @Inject constructor() : CentroRepository {
     }
 
     override fun observarCentros(): Flow<List<Centro>> = flowOf(centros)
+
+    override val progresoDescarga: StateFlow<ProgresoDescarga?> = MutableStateFlow(null)
 
     override fun observarCentro(codigo: String): Flow<Centro?> =
         flowOf(centros.firstOrNull { it.codigo == codigo })

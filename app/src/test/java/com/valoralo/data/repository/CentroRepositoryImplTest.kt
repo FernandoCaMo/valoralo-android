@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -41,13 +43,19 @@ class CentroRepositoryImplTest {
         var falla: Boolean = false,
     ) : CentrosRemoto {
         var descargas = 0
-        override suspend fun versionCatalogo(): String? {
+        val partesPedidas = mutableListOf<List<String>>()
+        override suspend fun infoCatalogo(): InfoCatalogo {
             if (falla) throw IOException("sin red")
-            return version
+            return InfoCatalogo(version, partes = listOf("huelva-1", "sevilla-1"))
         }
-        override suspend fun descargarCentros(): List<Centro> {
+        override suspend fun descargarCatalogo(
+            partes: List<String>,
+            alProgresar: (hechas: Int, total: Int) -> Unit,
+        ): List<Centro> {
             if (falla) throw IOException("sin red")
             descargas++
+            partesPedidas += partes
+            partes.indices.forEach { alProgresar(it + 1, partes.size) }
             return centros
         }
         override fun observarCentro(codigo: String): Flow<Centro?> = emptyFlow()
@@ -68,6 +76,22 @@ class CentroRepositoryImplTest {
         assertEquals(listOf("1", "2"), emitidos.map { it.codigo })
         assertEquals(1, remoto.descargas)
         assertEquals(MetaCatalogo("v1", ahora, FORMATO_CACHE_CATALOGO), local.meta)
+    }
+
+    @Test
+    fun `descarga las partes de config_catalogo e informa del progreso`() = runTest {
+        val remoto = FakeRemoto(centros = listOf(centro("1")))
+        val repositorio = repo(FakeLocal(), remoto)
+        val progresos = mutableListOf<ProgresoDescarga?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            repositorio.progresoDescarga.collect { progresos += it }
+        }
+        repositorio.observarCentros().first()
+        assertEquals(listOf(listOf("huelva-1", "sevilla-1")), remoto.partesPedidas)
+        assertEquals(
+            listOf(null, ProgresoDescarga(0, 2), ProgresoDescarga(1, 2), ProgresoDescarga(2, 2), null),
+            progresos,
+        )
     }
 
     @Test

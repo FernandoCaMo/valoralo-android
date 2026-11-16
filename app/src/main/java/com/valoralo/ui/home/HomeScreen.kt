@@ -29,6 +29,7 @@ import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -52,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.usecase.FiltroCentros
 import com.valoralo.ui.components.FotoCentro
@@ -104,9 +106,7 @@ private fun HomeContent(
         Spacer(Modifier.height(8.dp))
 
         when {
-            state.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
+            state.cargando -> Descargando(state.progreso)
             state.error -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text(
                     "No se han podido cargar los centros. Comprueba tu conexión e inténtalo de nuevo.",
@@ -227,6 +227,33 @@ private fun TarjetaCentro(
                     }
                 }
             }
+        }
+    }
+}
+
+/** First launch: the catalogue is being downloaded (one document per provincia). */
+@Composable
+private fun Descargando(progreso: ProgresoDescarga?) {
+    Column(
+        Modifier.fillMaxSize().padding(32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterVertically),
+    ) {
+        if (progreso == null || progreso.total == 0) {
+            CircularProgressIndicator()
+        } else {
+            LinearProgressIndicator(
+                progress = { progreso.hechas.toFloat() / progreso.total },
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        Text("Descargando centros…", style = MaterialTheme.typography.titleMedium)
+        if (progreso != null && progreso.total > 0) {
+            Text(
+                "${progreso.hechas} de ${progreso.total}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

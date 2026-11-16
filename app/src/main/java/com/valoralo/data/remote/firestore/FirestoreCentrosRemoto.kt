@@ -4,28 +4,55 @@ import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Source
 import com.valoralo.data.repository.CentrosRemoto
+import com.valoralo.data.repository.InfoCatalogo
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.EstadoValoracion
 import com.valoralo.domain.model.Valoracion
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 
-/** Read-only access to Firestore (the rules forbid client writes to centros and config). */
+/** Read-only access to Firestore (the rules forbid client writes to centros, catalogo and config). */
 @Singleton
 class FirestoreCentrosRemoto @Inject constructor(
     private val db: FirebaseFirestore,
 ) : CentrosRemoto {
 
-    override suspend fun versionCatalogo(): String? =
-        db.document(CONFIG_CATALOGO).get(Source.SERVER).await().getString("version")
+    override suspend fun infoCatalogo(): InfoCatalogo {
+        val snap = db.document(CONFIG_CATALOGO).get(Source.SERVER).await()
+        val partes = (snap.get("partes") as? List<*>).orEmpty().filterIsInstance<String>()
+        return InfoCatalogo(snap.getString("version"), partes)
+    }
 
-    override suspend fun descargarCentros(): List<Centro> =
-        db.collection(CENTROS).get(Source.SERVER).await().documents
-            .map { it.data.orEmpty().aCentro(it.id) }
+    override suspend fun descargarCatalogo(
+        partes: List<String>,
+        alProgresar: (hechas: Int, total: Int) -> Unit,
+    ): List<Centro> {
+        if (partes.isEmpty()) {
+            // Fallback for a project without catalogo/ documents: the whole collection.
+            alProgresar(0, 1)
+            return db.collection(CENTROS).get(Source.SERVER).await().documents
+                .map { it.data.orEmpty().aCentro(it.id) }
+                .also { alProgresar(1, 1) }
+        }
+        val hechas = AtomicInteger()
+        return coroutineScope {
+            partes.map { id ->
+                async {
+                    db.collection(CATALOGO).document(id).get(Source.SERVER).await()
+                        .data.orEmpty().aCentrosDeCatalogo()
+                        .also { alProgresar(hechas.incrementAndGet(), partes.size) }
+                }
+            }.awaitAll().flatten()
+        }
+    }
 
     override fun observarCentro(codigo: String): Flow<Centro?> = callbackFlow {
         val registro = db.collection(CENTROS).document(codigo).addSnapshotListener { snap, error ->
@@ -59,6 +86,7 @@ class FirestoreCentrosRemoto @Inject constructor(
     private companion object {
         const val TAG = "FirestoreCentros"
         const val CENTROS = "centros"
+        const val CATALOGO = "catalogo"
         const val VALORACIONES = "valoraciones"
         const val CONFIG_CATALOGO = "config/catalogo"
     }

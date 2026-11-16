@@ -4,6 +4,9 @@ import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.Valoracion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -12,8 +15,9 @@ import javax.inject.Singleton
 
 /**
  * Inicio reads the catalogue from the local cache and refreshes it in the background
- * only when [necesitaDescarga] says so (1 read of config/catalogo per launch instead of
- * the whole collection). The detail and its reviews are always live from Firestore.
+ * only when [necesitaDescarga] says so (1 read of config/catalogo per launch). A download
+ * reads the summarised catalogo/{provincia}-{parte} documents (~8 reads), not the whole
+ * centros collection. The detail and its reviews are always live from Firestore.
  */
 @Singleton
 class CentroRepositoryImpl(
@@ -25,16 +29,19 @@ class CentroRepositoryImpl(
     @Inject
     constructor(local: CatalogoLocal, remoto: CentrosRemoto) : this(local, remoto, Instant::now)
 
+    private val progreso = MutableStateFlow<ProgresoDescarga?>(null)
+    override val progresoDescarga: StateFlow<ProgresoDescarga?> = progreso.asStateFlow()
+
     override fun observarCentros(): Flow<List<Centro>> = channelFlow {
         if (local.meta() == null) {
             // First launch: nothing to show until the download works (errors reach the UI).
-            descargar(remoto.versionCatalogo())
+            descargar(remoto.infoCatalogo())
         } else {
             // Show the cache straight away and refresh it if needed; offline is fine.
             launch {
                 try {
-                    val version = remoto.versionCatalogo()
-                    if (necesitaDescarga(local.meta(), version, reloj())) descargar(version)
+                    val info = remoto.infoCatalogo()
+                    if (necesitaDescarga(local.meta(), info.version, reloj())) descargar(info)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (_: Exception) {
@@ -45,9 +52,16 @@ class CentroRepositoryImpl(
         local.observar().collect { send(it) }
     }
 
-    private suspend fun descargar(version: String?) {
-        val centros = remoto.descargarCentros()
-        local.guardar(centros, MetaCatalogo(version, reloj(), FORMATO_CACHE_CATALOGO))
+    private suspend fun descargar(info: InfoCatalogo) {
+        try {
+            progreso.value = ProgresoDescarga(0, info.partes.size)
+            val centros = remoto.descargarCatalogo(info.partes) { hechas, total ->
+                progreso.value = ProgresoDescarga(hechas, total)
+            }
+            local.guardar(centros, MetaCatalogo(info.version, reloj(), FORMATO_CACHE_CATALOGO))
+        } finally {
+            progreso.value = null
+        }
     }
 
     override fun observarCentro(codigo: String): Flow<Centro?> = remoto.observarCentro(codigo)

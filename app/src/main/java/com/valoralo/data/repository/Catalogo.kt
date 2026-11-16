@@ -10,7 +10,7 @@ import java.time.Instant
  * Bump when the cached JSON format changes incompatibly: the app then re-downloads
  * the catalogue instead of reading entries it can no longer decode.
  */
-const val FORMATO_CACHE_CATALOGO = 1
+const val FORMATO_CACHE_CATALOGO = 2 // 2: summarised centros from catalogo/{provincia}-{parte}
 
 /** The cached catalogue (centros with their stats) expires after this time. */
 val EDAD_MAXIMA_CATALOGO: Duration = Duration.ofHours(24)
@@ -42,11 +42,25 @@ interface CatalogoLocal {
     suspend fun guardar(centros: List<Centro>, meta: MetaCatalogo)
 }
 
+/** `config/catalogo`: version and the ids of the catalogo/{provincia}-{parte} documents. */
+data class InfoCatalogo(val version: String?, val partes: List<String>)
+
+/** Progress of the catalogue download shown on Inicio ("Descargando centros… 3 de 8"). */
+data class ProgresoDescarga(val hechas: Int, val total: Int)
+
 /** Firestore. */
 interface CentrosRemoto {
-    /** `config/catalogo.version`, read from the server. */
-    suspend fun versionCatalogo(): String?
-    suspend fun descargarCentros(): List<Centro>
+    /** `config/catalogo`, read from the server (1 read). */
+    suspend fun infoCatalogo(): InfoCatalogo
+
+    /**
+     * Downloads the summarised catalogue (1 read per part). With no parts listed it falls
+     * back to the whole centros collection.
+     */
+    suspend fun descargarCatalogo(
+        partes: List<String>,
+        alProgresar: (hechas: Int, total: Int) -> Unit,
+    ): List<Centro>
     /** Live centro (the detail always shows live averages). */
     fun observarCentro(codigo: String): Flow<Centro?>
     fun observarValoraciones(codigo: String): Flow<List<Valoracion>>
