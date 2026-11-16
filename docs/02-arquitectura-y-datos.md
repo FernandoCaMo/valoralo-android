@@ -90,7 +90,18 @@ verificaciones/{uid}                     // solo backend y administradores
   motivoRechazo?, fechaSolicitud, fechaRevision, revisorUid
 csvUsados/{csvHash} { uid, fecha }       // evita reutilizar un documento
 
-Cloud Functions
+Cloud Functions (functions/, TypeScript, región europe-southwest1)
+
+Implementadas (Fase 5):
+publicarValoracion (callable, App Check) → valida el formulario, pasa el filtro de texto (también a "Otro departamento"): BLOQUEADO no se guarda y devuelve los fragmentos; DUDOSO se guarda EN_REVISION con los fragmentos; si el autor edita una reseña en revisión por el filtro y ahora pasa, se publica. Las que están en revisión por denuncias u ocultas por moderación vuelven a revisión al editarlas.
+denunciarValoracion (callable, App Check) → una denuncia por usuario y reseña (nunca la propia); con 3 denuncias PENDIENTES pasa la reseña a EN_REVISION.
+alEscribirValoracion (trigger) → recalcula stats y la nota y nº de reseñas del centro en su catalogo/{provincia}-{parte}.
+alBorrarUsuario (trigger al borrar usuarios/{uid}, que hace la app al eliminar la cuenta) → borra sus valoraciones (cada borrado recalcula su centro) y sus denuncias.
+Moderación hasta la Fase 6: tools/moderacion/moderar.py (listar, aprobar, rechazar; resuelve las denuncias pendientes).
+
+Filtro de texto (functions/src/filtro): sin servicios externos. Normaliza (minúsculas, sin tildes, "leet", letras repetidas, insultos deletreados); listas propias de insultos (bloquean) e insultos ambiguos (dudosos tras "un", "eres"…); nombres y apellidos del INE (tools/filtro): nombre tras un tratamiento ("la profe Ana") o nombre y apellido seguidos → bloqueado; nombre de pila en mayúscula → bloqueado; nombre ambiguo o apellido en mayúscula a mitad de frase, o nombre frecuente en minúscula → dudoso; correos, teléfonos y enlaces → bloqueado. Excepciones: palabras del nombre del centro, localidad, municipio, provincia, departamentos, asignaturas y términos educativos.
+
+Plan original:
 
 onValoracionWrite → recalcula centros/{codigo}.stats (total y por rol; cada grupo con su desglose por departamento) y actualiza nota y resenas del centro en su documento catalogo/{provincia}-{parte}.
 solicitarVerificacion → crea la solicitud y comprueba que el CSV no se ha usado.
