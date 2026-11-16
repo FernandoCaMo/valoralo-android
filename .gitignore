@@ -23,6 +23,8 @@ GoogleService-Info.plist
 *.jks
 .env
 .env.*
+# Non-secret Functions parameters (App Check switch). Secrets never go in .env files.
+!functions/.env
 service-account*.json
 
 # Firebase emulators / functions
