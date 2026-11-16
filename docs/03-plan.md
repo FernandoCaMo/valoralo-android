@@ -17,8 +17,8 @@ Fase	Contenido
 1. Datos	Dataset de Andalucía → script tools/import → Firestore. Empezar con una provincia.
 2. Catálogo	Home (lista + búsqueda + filtros) y detalle de centro, primero con datos de prueba.
 3. Cuentas	Registro con fecha de nacimiento (≥14), login email/Google, Mi cuenta.
+5. Valoraciones	Formulario de 3 bloques + departamentos, agregados por rol, filtro de reseñas. (Se hace antes que la 4; ver decisiones.md.)
 4. Verificación docente	Pantalla de solicitud, Functions, reglas, panel admin sencillo.
-5. Valoraciones	Formulario de 3 bloques + departamentos, agregados por rol, filtro de reseñas.
 6. Extras MVP	Favoritos, comparador, denuncias, moderación.
 7. Publicación	Privacidad, condiciones, pruebas, Google Play.
 Checklist al llegar a casa

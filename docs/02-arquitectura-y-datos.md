@@ -57,7 +57,8 @@ usuarios/{uid}
   fechaAlta, mayorDe14: true, centroActualCodigo?   // rol/verificado: solo backend
   // Reglas: el usuario crea su propio documento con exactamente alias, rol (ESTUDIANTE u OTRO),
   // verificado: false, mayorDe14: true y fechaAlta = hora del servidor; después solo puede cambiar
-  // el alias (3–30 caracteres) y borrar el documento (eliminar cuenta). Solo lee el suyo.
+  // el alias (3–30 caracteres), el rol entre ESTUDIANTE y OTRO (nunca a DOCENTE ni desde DOCENTE)
+  // y borrar el documento (eliminar cuenta). Solo lee el suyo. Las reseñas ya escritas mantienen su rolAutor.
   // La fecha de nacimiento se pide para comprobar la edad, pero no se guarda.
 
 centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
