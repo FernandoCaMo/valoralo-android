@@ -22,6 +22,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.valoralo.ui.account.AboutScreen
 import com.valoralo.ui.account.AccountScreen
 import com.valoralo.ui.detail.DetailScreen
 import com.valoralo.ui.detail.DetailViewModel
@@ -92,7 +93,8 @@ fun ValoraloRoot(navController: NavHostController = rememberNavController()) {
                 )
             }
             composable(Rutas.FAVORITOS) { FavoritesScreen() }
-            composable(Rutas.CUENTA) { AccountScreen() }
+            composable(Rutas.CUENTA) { AccountScreen(onAcercaDe = { navController.navigate(Rutas.ACERCA_DE) }) }
+            composable(Rutas.ACERCA_DE) { AboutScreen(onVolver = { navController.popBackStack() }) }
         }
     }
 }
@@ -100,7 +102,11 @@ fun ValoraloRoot(navController: NavHostController = rememberNavController()) {
 /** Centro detail belongs to the tab it was opened from; default to Inicio. */
 private fun NavDestination.pestana(): Pestana? =
     Pestana.entries.firstOrNull { it.ruta == route }
-        ?: if (route == Rutas.CENTRO) Pestana.INICIO else null
+        ?: when (route) {
+            Rutas.CENTRO -> Pestana.INICIO
+            Rutas.ACERCA_DE -> Pestana.CUENTA
+            else -> null
+        }
 
 private fun NavHostController.irAPestana(pestana: Pestana) {
     navigate(pestana.ruta) {

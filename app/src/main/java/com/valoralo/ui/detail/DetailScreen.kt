@@ -57,7 +57,8 @@ import com.valoralo.domain.usecase.FiltroRol
 import com.valoralo.domain.usecase.formatearNota
 import com.valoralo.ui.components.LogoValoralo
 import com.valoralo.ui.components.NotaMedia
-import com.valoralo.ui.home.localidad
+import com.valoralo.ui.components.FUENTE_DATOS
+import com.valoralo.ui.home.ubicacion
 
 @Composable
 fun DetailScreen(
@@ -156,7 +157,7 @@ private fun Cabecera(centro: Centro) {
     Column {
         Text(centro.nombre, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         Text(
-            "${centro.tipo} · ${centro.localidad()}",
+            "${centro.tipo} · ${centro.ubicacion()}",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -176,7 +177,7 @@ private fun Informacion(centro: Centro) {
     fun abrir(uri: String) = runCatching { uriHandler.openUri(uri) }
 
     Seccion("Información") {
-        FilaInfo(Icons.Outlined.Place, "${centro.direccion}\n${centro.cp} ${centro.localidad()}")
+        FilaInfo(Icons.Outlined.Place, "${centro.direccion}\n${centro.cp} ${centro.ubicacion()}".trimEnd())
         centro.telefono?.let { tel ->
             FilaInfo(Icons.Outlined.Phone, tel, onClick = { abrir("tel:${tel.replace(" ", "")}") })
         }
@@ -187,6 +188,12 @@ private fun Informacion(centro: Centro) {
             FilaInfo(Icons.Outlined.Language, web.removePrefix("https://"), onClick = { abrir(web) })
         }
         FilaInfo(Icons.Outlined.Tag, "Código de centro: ${centro.codigo}")
+        Text(
+            FUENTE_DATOS,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp),
+        )
     }
 }
 

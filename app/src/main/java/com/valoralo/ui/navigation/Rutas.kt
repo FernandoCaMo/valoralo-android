@@ -18,6 +18,7 @@ object Rutas {
     const val CENTRO = "centro/{codigo}"
     const val FAVORITOS = "favoritos"
     const val CUENTA = "cuenta"
+    const val ACERCA_DE = "cuenta/acerca-de"
 
     fun centro(codigo: String) = "centro/$codigo"
 }
