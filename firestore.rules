@@ -11,11 +11,15 @@ service cloud.firestore {
       allow read: if true;
       allow write: if false;
 
-      // Reviews: anyone can read the published ones. Queries must filter by
-      // estado == "PUBLICADA" or they are rejected. Writing arrives in Phase 5.
+      // Reviews: anyone can read the published ones (queries must filter by
+      // estado == "PUBLICADA"); the author can also read their own while it is under
+      // review. They are written only by the publicarValoracion function (filter, role
+      // from the profile); the author can delete their own.
       match /valoraciones/{uid} {
-        allow read: if resource.data.estado == "PUBLICADA";
-        allow write: if false;
+        allow read: if resource.data.estado == "PUBLICADA"
+          || (request.auth != null && request.auth.uid == uid);
+        allow delete: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if false;
       }
     }
 

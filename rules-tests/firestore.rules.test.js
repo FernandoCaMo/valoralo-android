@@ -90,18 +90,28 @@ describe("valoraciones", () => {
     await assertSucceeds(getDocs(publicadas));
   });
 
-  test("no se leen las que no están publicadas, ni siquiera el autor", async () => {
+  test("las que están en revisión solo las lee su autor", async () => {
     await assertFails(getDoc(doc(anonimo(), "centros/21000693/valoraciones/autorB")));
-    await assertFails(getDoc(doc(usuario("autorB"), "centros/21000693/valoraciones/autorB")));
+    await assertFails(getDoc(doc(usuario("autorA"), "centros/21000693/valoraciones/autorB")));
+    await assertSucceeds(getDoc(doc(usuario("autorB"), "centros/21000693/valoraciones/autorB")));
   });
 
   test("una consulta sin filtrar por estado se rechaza", async () => {
     await assertFails(getDocs(collection(anonimo(), "centros/21000693/valoraciones")));
   });
 
-  test("por ahora el cliente no puede escribir valoraciones", async () => {
-    const ref = doc(usuario("autorC"), "centros/21000693/valoraciones/autorC");
-    await assertFails(setDoc(ref, { uid: "autorC", estado: "PUBLICADA", rolAutor: "OTRO" }));
+  test("el cliente no crea ni edita valoraciones (lo hace publicarValoracion)", async () => {
+    const nueva = doc(usuario("autorC"), "centros/21000693/valoraciones/autorC");
+    await assertFails(setDoc(nueva, { uid: "autorC", estado: "PUBLICADA", rolAutor: "DOCENTE" }));
+    const propia = doc(usuario("autorA"), "centros/21000693/valoraciones/autorA");
+    await assertFails(updateDoc(propia, { rolAutor: "DOCENTE" }));
+    await assertFails(updateDoc(doc(usuario("autorB"), "centros/21000693/valoraciones/autorB"), { estado: "PUBLICADA" }));
+  });
+
+  test("el autor puede borrar la suya y nadie más", async () => {
+    await assertFails(deleteDoc(doc(usuario("autorB"), "centros/21000693/valoraciones/autorA")));
+    await assertFails(deleteDoc(doc(anonimo(), "centros/21000693/valoraciones/autorA")));
+    await assertSucceeds(deleteDoc(doc(usuario("autorA"), "centros/21000693/valoraciones/autorA")));
   });
 });
 
@@ -208,6 +218,11 @@ describe("todo lo demás está cerrado", () => {
     await assertFails(setDoc(doc(usuario("autorA"), "verificaciones/autorA"), { estado: "APROBADA" }));
     await assertFails(getDoc(doc(usuario("autorA"), "usuarios/autorA/favoritos/21000693")));
     await assertFails(getDoc(doc(anonimo(), "loquesea/x")));
-    await assertFails(setDoc(doc(usuario(), "denuncias/d1"), { motivo: "x" }));
+  });
+
+  test("denuncias: solo las escribe denunciarValoracion; nadie las lee", async () => {
+    await assertFails(setDoc(doc(usuario("autorB"), "denuncias/21000693_autorA_autorB"), { motivo: "INSULTOS" }));
+    await assertFails(getDoc(doc(usuario("autorB"), "denuncias/21000693_autorA_autorB")));
+    await assertFails(getDocs(collection(usuario("autorA"), "denuncias")));
   });
 });
