@@ -2,7 +2,6 @@ package com.valoralo.data.remote.firestore
 
 import android.util.Log
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.Query
 import com.valoralo.data.repository.CentroRepository
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.EstadoValoracion
@@ -48,9 +47,9 @@ class FirestoreCentroRepository @Inject constructor(
 
     override fun observarValoraciones(codigo: String): Flow<List<Valoracion>> = callbackFlow {
         // The rules only allow reading published reviews, so the query must filter by estado.
+        // Sorting by fecha happens in the domain (filtrarPor), so no composite index is needed.
         val consulta = db.collection(CENTROS).document(codigo).collection(VALORACIONES)
             .whereEqualTo("estado", EstadoValoracion.PUBLICADA.name)
-            .orderBy("fecha", Query.Direction.DESCENDING)
         val registro = consulta.addSnapshotListener { snap, error ->
             if (error != null) {
                 Log.w(TAG, "Error leyendo valoraciones de $codigo", error)
