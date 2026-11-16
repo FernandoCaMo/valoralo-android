@@ -55,6 +55,10 @@ Cálculo de las notas (lo hace onValoracionWrite; solo cuentan las reseñas PUBL
 usuarios/{uid}
   alias, rol: "DOCENTE" | "ESTUDIANTE" | "OTRO", verificado: Boolean,
   fechaAlta, mayorDe14: true, centroActualCodigo?   // rol/verificado: solo backend
+  // Reglas: el usuario crea su propio documento con exactamente alias, rol (ESTUDIANTE u OTRO),
+  // verificado: false, mayorDe14: true y fechaAlta = hora del servidor; después solo puede cambiar
+  // el alias (3–30 caracteres) y borrar el documento (eliminar cuenta). Solo lee el suyo.
+  // La fecha de nacimiento se pide para comprobar la edad, pero no se guarda.
 
 centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
   uid, alias, rolAutor, verificado, fecha, editada,
@@ -97,7 +101,7 @@ Consulta "filtrar por rol": valoraciones.where("rolAutor","==",X).orderBy("fecha
 
 Rutas de navegación
 
-home · search · centro/{codigo} · centro/{codigo}/valorar · compare?ids=a,b,c · favoritos · cuenta · cuenta/verificar-docente · cuenta/acerca-de · login · registro
+home · search · centro/{codigo} · centro/{codigo}/valorar · compare?ids=a,b,c · favoritos · cuenta · cuenta/verificar-docente · cuenta/acerca-de · login · registro · registro/perfil (completar el perfil tras el primer acceso con Google)
 
 Búsqueda: por nombre, localidad o municipio (sin distinguir mayúsculas ni tildes).
 
