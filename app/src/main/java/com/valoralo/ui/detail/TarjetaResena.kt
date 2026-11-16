@@ -15,6 +15,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
@@ -31,10 +33,31 @@ import java.time.format.DateTimeFormatter
 
 private val FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
+/**
+ * [onDenunciar] shows the report button (other people's reviews); [etiquetaEstado] tells the
+ * author that their own review is under review or hidden.
+ */
 @Composable
-fun TarjetaResena(valoracion: Valoracion, modifier: Modifier = Modifier) {
+fun TarjetaResena(
+    valoracion: Valoracion,
+    modifier: Modifier = Modifier,
+    onDenunciar: (() -> Unit)? = null,
+    etiquetaEstado: String? = null,
+) {
     OutlinedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
+            etiquetaEstado?.let {
+                Text(
+                    it,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier
+                        .padding(bottom = 8.dp)
+                        .clip(RoundedCornerShape(50))
+                        .background(MaterialTheme.colorScheme.secondaryContainer)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Avatar(valoracion.alias)
                 Column(Modifier.weight(1f)) {
@@ -60,13 +83,19 @@ fun TarjetaResena(valoracion: Valoracion, modifier: Modifier = Modifier) {
             }
             Spacer(Modifier.height(8.dp))
             Text(valoracion.texto, style = MaterialTheme.typography.bodyMedium)
-            if (valoracion.editada) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    "(editada)",
+                    if (valoracion.editada) "(editada)" else "",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.weight(1f),
                 )
+                if (onDenunciar != null) {
+                    TextButton(onClick = onDenunciar) {
+                        Icon(Icons.Outlined.Flag, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Text(" Denunciar", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }

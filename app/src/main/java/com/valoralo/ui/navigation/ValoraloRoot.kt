@@ -35,6 +35,8 @@ import com.valoralo.ui.detail.DetailScreen
 import com.valoralo.ui.detail.DetailViewModel
 import com.valoralo.ui.favorites.FavoritesScreen
 import com.valoralo.ui.home.HomeScreen
+import com.valoralo.ui.review.ReviewScreen
+import com.valoralo.ui.review.ReviewViewModel
 import kotlinx.coroutines.launch
 
 @Composable
@@ -116,14 +118,31 @@ fun ValoraloRoot(
             ) {
                 DetailScreen(
                     onVolver = { navController.popBackStack() },
-                    onAnadirValoracion = {
+                    onAnadirValoracion = { centro ->
                         val s = sesion
                         if (s is Sesion.Iniciada && s.perfil != null) {
-                            avisar("El formulario de valoración llegará muy pronto.")
+                            navController.navigate(Rutas.valorar(centro.codigo))
                         } else {
                             avisar("Inicia sesión para valorar centros.")
                             navController.navigate(Rutas.LOGIN)
                         }
+                    },
+                    onIniciarSesion = {
+                        avisar("Inicia sesión para denunciar una reseña.")
+                        navController.navigate(Rutas.LOGIN)
+                    },
+                    onAviso = ::avisar,
+                )
+            }
+            composable(
+                Rutas.VALORAR,
+                arguments = listOf(navArgument(ReviewViewModel.ARG_CODIGO) { type = NavType.StringType }),
+            ) {
+                ReviewScreen(
+                    onVolver = { navController.popBackStack() },
+                    onTerminado = { mensaje ->
+                        avisar(mensaje)
+                        navController.popBackStack()
                     },
                 )
             }
@@ -173,7 +192,7 @@ fun ValoraloRoot(
 private fun NavDestination.pestana(): Pestana? =
     Pestana.entries.firstOrNull { it.ruta == route }
         ?: when (route) {
-            Rutas.CENTRO -> Pestana.INICIO
+            Rutas.CENTRO, Rutas.VALORAR -> Pestana.INICIO
             Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL -> Pestana.CUENTA
             else -> null
         }

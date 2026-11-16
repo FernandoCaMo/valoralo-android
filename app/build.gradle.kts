@@ -28,7 +28,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // ./gradlew assembleDebug -Pvaloralo.emuladores=true → use the local Firebase emulators.
+            val emuladores = (project.findProperty("valoralo.emuladores") as String?) == "true"
+            buildConfigField("boolean", "USAR_EMULADORES", emuladores.toString())
+        }
         release {
+            buildConfigField("boolean", "USAR_EMULADORES", "false")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

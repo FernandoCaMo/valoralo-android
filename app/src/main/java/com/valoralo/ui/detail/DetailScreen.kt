@@ -57,6 +57,20 @@ import com.valoralo.domain.usecase.FiltroRol
 import com.valoralo.domain.usecase.formatearNota
 import com.valoralo.ui.components.LogoValoralo
 import com.valoralo.ui.components.NotaMedia
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.Role
+import com.valoralo.data.valoraciones.MotivoDenuncia
+import com.valoralo.domain.model.EstadoValoracion
+import com.valoralo.domain.model.Valoracion
 import com.valoralo.ui.components.FUENTE_DATOS
 import com.valoralo.ui.home.ubicacion
 
@@ -64,10 +78,20 @@ import com.valoralo.ui.home.ubicacion
 fun DetailScreen(
     onVolver: () -> Unit,
     onAnadirValoracion: (Centro) -> Unit,
+    onIniciarSesion: () -> Unit,
+    onAviso: (String) -> Unit,
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    DetailContent(state, onVolver, onAnadirValoracion, viewModel::onFiltroRolChange)
+    val aviso by viewModel.aviso.collectAsStateWithLifecycle()
+    LaunchedEffect(aviso) {
+        aviso?.let { onAviso(it); viewModel.avisoMostrado() }
+    }
+    DetailContent(
+        state, onVolver, onAnadirValoracion, viewModel::onFiltroRolChange,
+        onDenunciar = { autor, motivo -> viewModel.denunciar(autor, motivo) },
+        onIniciarSesion = onIniciarSesion,
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +101,8 @@ private fun DetailContent(
     onVolver: () -> Unit,
     onAnadirValoracion: (Centro) -> Unit,
     onFiltroRolChange: (FiltroRol) -> Unit,
+    onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
+    onIniciarSesion: () -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -92,10 +118,11 @@ private fun DetailContent(
         },
         floatingActionButton = {
             if (state is DetailUiState.Listo) {
+                val propia = state.miValoracion != null
                 ExtendedFloatingActionButton(
                     onClick = { onAnadirValoracion(state.centro) },
-                    icon = { Icon(Icons.Filled.Add, contentDescription = null) },
-                    text = { Text("Añadir valoración") },
+                    icon = { Icon(if (propia) Icons.Outlined.Edit else Icons.Filled.Add, contentDescription = null) },
+                    text = { Text(if (propia) "Editar mi valoración" else "Añadir valoración") },
                 )
             }
         },
@@ -112,7 +139,7 @@ private fun DetailContent(
             DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
                 Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
             }
-            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding)
+            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion)
         }
     }
 }
@@ -122,8 +149,17 @@ private fun DetailLista(
     state: DetailUiState.Listo,
     onFiltroRolChange: (FiltroRol) -> Unit,
     padding: PaddingValues,
+    onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
+    onIniciarSesion: () -> Unit,
 ) {
     val centro = state.centro
+    var denunciando by remember { mutableStateOf<Valoracion?>(null) }
+    denunciando?.let { v ->
+        DialogoDenuncia(
+            onDenunciar = { motivo -> onDenunciar(v.uid, motivo); denunciando = null },
+            onCancelar = { denunciando = null },
+        )
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(padding),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
@@ -141,6 +177,10 @@ private fun DetailLista(
         if (state.departamentos.isNotEmpty()) {
             item { NotasPorDepartamento(state.departamentos) }
         }
+        state.miValoracion?.let { mia ->
+            item { Titulo("Tu valoración") }
+            item(key = "mia") { TarjetaResena(mia, etiquetaEstado = mia.estado.etiquetaParaElAutor()) }
+        }
         item { Titulo("Reseñas") }
         if (state.resenas.isEmpty()) {
             item {
@@ -150,7 +190,11 @@ private fun DetailLista(
                 )
             }
         } else {
-            items(state.resenas, key = { it.uid }) { TarjetaResena(it) }
+            items(state.resenas, key = { it.uid }) { v ->
+                TarjetaResena(v, onDenunciar = {
+                    if (state.uidActual == null) onIniciarSesion() else denunciando = v
+                })
+            }
         }
     }
 }
@@ -320,6 +364,41 @@ private fun FiltroRol.etiqueta(): String = when (this) {
     FiltroRol.DOCENTES -> "Docentes"
     FiltroRol.ESTUDIANTES -> "Estudiantes"
     FiltroRol.OTROS -> "Otros"
+}
+
+private fun EstadoValoracion.etiquetaParaElAutor(): String? = when (this) {
+    EstadoValoracion.PUBLICADA -> null
+    EstadoValoracion.EN_REVISION -> "En revisión: aún no la ven los demás"
+    EstadoValoracion.OCULTA -> "Oculta por moderación"
+}
+
+@Composable
+private fun DialogoDenuncia(onDenunciar: (MotivoDenuncia) -> Unit, onCancelar: () -> Unit) {
+    var motivo by remember { mutableStateOf<MotivoDenuncia?>(null) }
+    AlertDialog(
+        onDismissRequest = onCancelar,
+        title = { Text("Denunciar reseña") },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                Text("¿Qué problema tiene?", style = MaterialTheme.typography.bodyMedium)
+                MotivoDenuncia.entries.forEach { m ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .selectable(selected = motivo == m, role = Role.RadioButton, onClick = { motivo = m })
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = motivo == m, onClick = null)
+                        Text(m.etiqueta, Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { motivo?.let(onDenunciar) }, enabled = motivo != null) { Text("Denunciar") }
+        },
+        dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } },
+    )
 }
 
 /** "Aún no hay reseñas{deQuien()}." */

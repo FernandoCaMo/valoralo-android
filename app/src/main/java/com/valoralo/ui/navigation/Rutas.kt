@@ -23,7 +23,10 @@ object Rutas {
     const val REGISTRO = "registro"
     const val COMPLETAR_PERFIL = "registro/perfil"
 
+    const val VALORAR = "centro/{codigo}/valorar"
+
     fun centro(codigo: String) = "centro/$codigo"
+    fun valorar(codigo: String) = "centro/$codigo/valorar"
 }
 
 enum class Pestana(
