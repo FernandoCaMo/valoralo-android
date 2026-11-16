@@ -1,0 +1,34 @@
+rules_version = '2';
+
+// Valoralo — Firestore security rules (docs/02-arquitectura-y-datos.md).
+// The catalogue, stats, rol and verificado are written only by the backend
+// (Admin SDK / Cloud Functions), which bypasses these rules.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Catalogue of centros, including stats: public read, no client writes.
+    match /centros/{codigo} {
+      allow read: if true;
+      allow write: if false;
+
+      // Reviews: anyone can read the published ones. Queries must filter by
+      // estado == "PUBLICADA" or they are rejected. Writing arrives in Phase 5.
+      match /valoraciones/{uid} {
+        allow read: if resource.data.estado == "PUBLICADA";
+        allow write: if false;
+      }
+    }
+
+    // App configuration (e.g. config/departamentos): public read.
+    match /config/{documento} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Everything else (usuarios, verificaciones, denuncias, csvUsados…) stays
+    // closed until its phase defines the rules.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
