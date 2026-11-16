@@ -3,6 +3,12 @@ package com.valoralo.ui.account
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material3.RadioButton
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -115,6 +121,7 @@ private fun SinSesion(onIniciarSesion: () -> Unit, onCrearCuenta: () -> Unit) {
 private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCuentaViewModel) {
     var editarAlias by rememberSaveable { mutableStateOf(false) }
     var eliminar by rememberSaveable { mutableStateOf(false) }
+    var cambiarRol by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(perfil.alias, style = MaterialTheme.typography.headlineSmall)
@@ -132,12 +139,18 @@ private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCue
         }
     }
     Opcion(Icons.Outlined.Edit, "Cambiar alias", perfil.alias) { editarAlias = true }
+    if (perfil.rol != Rol.DOCENTE) {
+        Opcion(Icons.Outlined.Badge, "Cambiar rol", if (perfil.rol == Rol.ESTUDIANTE) "Estudiante" else "Otro") {
+            cambiarRol = true
+        }
+    }
     if (!(perfil.rol == Rol.DOCENTE && perfil.verificado)) {
         Opcion(Icons.Outlined.School, "Soy docente", "Verificación con la hoja de servicios. Próximamente.", habilitada = false) {}
     }
     Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borran tu perfil y tu acceso", flecha = false, peligro = true) { eliminar = true }
 
     if (editarAlias) DialogoAlias(perfil.alias, viewModel) { editarAlias = false }
+    if (cambiarRol) DialogoRol(perfil.rol, viewModel) { cambiarRol = false }
     if (eliminar) DialogoEliminar(sesion.conGoogle, viewModel) { eliminar = false }
 }
 
@@ -159,6 +172,43 @@ private fun DialogoAlias(actual: String, viewModel: MiCuentaViewModel, onCerrar:
             TextButton(onClick = {
                 error = viewModel.cambiarAlias(alias)
                 if (error == null) onCerrar()
+            }) { Text("Guardar") }
+        },
+        dismissButton = { TextButton(onClick = onCerrar) { Text("Cancelar") } },
+    )
+}
+
+@Composable
+private fun DialogoRol(actual: Rol, viewModel: MiCuentaViewModel, onCerrar: () -> Unit) {
+    var elegido by rememberSaveable { mutableStateOf(actual) }
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text("Cambiar rol") },
+        text = {
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(Rol.ESTUDIANTE to "Estudiante", Rol.OTRO to "Otro (familia, exalumnado…)").forEach { (rol, texto) ->
+                    Row(
+                        Modifier.fillMaxWidth()
+                            .selectable(selected = elegido == rol, role = Role.RadioButton, onClick = { elegido = rol })
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = elegido == rol, onClick = null)
+                        Text(texto, Modifier.padding(start = 8.dp))
+                    }
+                }
+                Text(
+                    "Tus reseñas ya publicadas mantienen el rol con el que las escribiste. " +
+                        "Si eres docente, verifícate desde \"Soy docente\".",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                if (elegido != actual) viewModel.cambiarRol(elegido)
+                onCerrar()
             }) { Text("Guardar") }
         },
         dismissButton = { TextButton(onClick = onCerrar) { Text("Cancelar") } },

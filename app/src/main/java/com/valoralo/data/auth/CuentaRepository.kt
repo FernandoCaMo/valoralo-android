@@ -1,6 +1,7 @@
 package com.valoralo.data.auth
 
 import com.valoralo.domain.model.PerfilNuevo
+import com.valoralo.domain.model.Rol
 import com.valoralo.domain.model.Sesion
 import kotlinx.coroutines.flow.StateFlow
 
@@ -28,6 +29,9 @@ interface CuentaRepository {
     suspend fun cancelarRegistro()
 
     suspend fun cambiarAlias(alias: String)
+
+    /** Only between ESTUDIANTE and OTRO; reviews already written keep their rolAutor. */
+    suspend fun cambiarRol(rol: Rol)
     suspend fun recuperarContrasena(correo: String)
     suspend fun cerrarSesion()
 

@@ -192,6 +192,8 @@ class MiCuentaViewModel @Inject constructor(private val repo: CuentaRepository) 
         return null
     }
 
+    fun cambiarRol(rol: Rol) = ejecutar("Rol actualizado.") { repo.cambiarRol(rol) }
+
     fun cerrarSesion(context: Context) = viewModelScope.launch {
         repo.cerrarSesion()
         GoogleSignIn.olvidar(context)

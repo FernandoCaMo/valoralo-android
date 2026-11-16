@@ -121,6 +121,12 @@ class FirebaseCuentaRepository @Inject constructor(
         Unit
     }
 
+    override suspend fun cambiarRol(rol: Rol) = traducirErrores {
+        require(rol == Rol.ESTUDIANTE || rol == Rol.OTRO) { "Solo ESTUDIANTE u OTRO" }
+        perfil(usuarioActual().uid).update("rol", rol.name).await()
+        Unit
+    }
+
     override suspend fun recuperarContrasena(correo: String) = traducirErrores {
         auth.sendPasswordResetEmail(correo.trim()).await()
         Unit
