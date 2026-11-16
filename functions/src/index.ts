@@ -6,8 +6,16 @@
  *  alEscribirValoracion trigger: recalculates centros/{codigo}.stats and the catalogue entry.
  *  alBorrarUsuario      trigger: when usuarios/{uid} is deleted (account deletion), deletes
  *                       the user's reviews (each deletion recalculates its centro) and reports.
+ *  solicitarVerificacion  callable: teacher verification request (doc 04).
+ *  resolverVerificacion   callable, administrators only: approve or reject.
+ *  caducarVerificaciones  daily: pending requests older than 30 days expire.
  */
 import { initializeApp } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
+import { onSchedule } from "firebase-functions/v2/scheduler";
+import { ErrorVerificacion } from "./verificacion/logica";
+import { caducarPendientes, ErrorOperacion, resolver, solicitar } from "./verificacion/operaciones";
 import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
@@ -193,6 +201,39 @@ export const alEscribirValoracion = onDocumentWritten("centros/{codigo}/valoraci
   const relevante = (d?: FirebaseFirestore.DocumentData) => d && JSON.stringify([d.estado, d.rolAutor, d.centro, d.instalaciones, d.profesorado]);
   if (relevante(antes) === relevante(despues)) return;
   await recalcularCentro(event.params.codigo);
+});
+
+// ---------- Verificación de docentes (doc 04) ----------
+
+function aHttpsError(e: unknown): never {
+  if (e instanceof ErrorVerificacion) throw new HttpsError("invalid-argument", e.message);
+  if (e instanceof ErrorOperacion) throw new HttpsError(e.codigo, e.message);
+  throw e;
+}
+
+export const solicitarVerificacion = onCall(async (request) => {
+  const uid = comprobarLlamada(request);
+  try {
+    return await solicitar(db(), getStorage().bucket(), uid, request.data, new Date());
+  } catch (e) {
+    aHttpsError(e);
+  }
+});
+
+/** Administrators only (custom claim admin = true, set with tools/admin/hacer_admin.py). */
+export const resolverVerificacion = onCall(async (request) => {
+  const uid = comprobarLlamada(request);
+  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  try {
+    return await resolver(db(), getAuth(), getStorage().bucket(), uid, request.data, new Date());
+  } catch (e) {
+    aHttpsError(e);
+  }
+});
+
+export const caducarVerificaciones = onSchedule({ schedule: "every day 04:00", timeZone: "Europe/Madrid" }, async () => {
+  const n = await caducarPendientes(db(), getStorage().bucket(), new Date());
+  logger.info("Solicitudes de verificación caducadas", { n });
 });
 
 // ---------- Eliminar cuenta ----------
