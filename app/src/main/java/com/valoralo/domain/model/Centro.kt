@@ -1,6 +1,12 @@
 package com.valoralo.domain.model
 
-/** Centro educativo público. Mirrors `centros/{codigo}` in Firestore (doc 02). */
+import kotlinx.serialization.Serializable
+
+/**
+ * Centro educativo público. Mirrors `centros/{codigo}` in Firestore (doc 02).
+ * Serializable because the catalogue is cached locally (Room, as JSON).
+ */
+@Serializable
 data class Centro(
     val codigo: String,
     val nombre: String,
@@ -20,16 +26,20 @@ data class Centro(
     val fotoUrl: String? = null,
     val ensenanzas: List<Ensenanza> = emptyList(),
     val departamentos: List<String> = emptyList(),
+    /** "plantilla" (plantilla orgánica) or "estandar" (standard list by tipo). */
+    val departamentosFuente: String? = null,
     val stats: Stats = Stats(),
     val fuente: Fuente? = null,
 )
 
 /** Origin of the catalogue data (CC BY 4.0 requires attribution). */
+@Serializable
 data class Fuente(
     val dataset: String,
     val curso: String,
 )
 
+@Serializable
 data class Ensenanza(
     /** ESO, Bachillerato, FP Grado Medio, FP Grado Superior, Infantil, Primaria… */
     val nivel: String,
