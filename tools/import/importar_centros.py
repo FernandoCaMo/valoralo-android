@@ -29,7 +29,7 @@ import sys
 import unicodedata
 import urllib.request
 
-from catalogo import documentos_catalogo, tamano_estimado
+from catalogo import documento_de_cada_centro, documentos_catalogo, tamano_estimado
 from departamentos import asignar, cargar_estandar, cargar_tabla, departamentos_por_centro
 from mapeo import fila_a_centro, ignoradas_con_s
 
@@ -185,17 +185,18 @@ def escribir_catalogo(db, documentos, estandar):
     print(f"config/catalogo.version = {version}; partes = {partes}")
 
 
-def escribir(db, centros):
-    """Writes centros/{codigo}. Returns {codigo: stats.total} of the centros that already existed."""
+def leer_stats_existentes(db, centros):
+    """{codigo: stats.total} of the centros that already exist (keeps their averages)."""
+    refs = [db.collection("centros").document(c["codigo"]) for c in centros]
+    return {snap.id: (snap.to_dict().get("stats") or {}).get("total") for snap in db.get_all(refs) if snap.exists}
+
+
+def escribir(db, centros, existentes):
+    """Writes centros/{codigo} with merge; only new centros get empty stats."""
     from google.cloud.firestore import GeoPoint
 
     coleccion = db.collection("centros")
     refs = [coleccion.document(c["codigo"]) for c in centros]
-    stats_existentes = {}
-    for snap in db.get_all(refs):
-        if snap.exists:
-            stats_existentes[snap.id] = (snap.to_dict().get("stats") or {}).get("total")
-    existentes = set(stats_existentes)
 
     nuevos = 0
     for inicio in range(0, len(centros), LOTE):
@@ -209,7 +210,6 @@ def escribir(db, centros):
             lote.set(ref, datos, merge=True)
         lote.commit()
     print(f"Escritos {len(centros)} centros ({nuevos} nuevos, {len(centros) - nuevos} actualizados).")
-    return stats_existentes
 
 
 def main(argv=None):
@@ -245,8 +245,12 @@ def main(argv=None):
         return
 
     db = cliente_firestore(args)
-    stats = escribir(db, centros)
+    stats = leer_stats_existentes(db, centros)
     documentos = documentos_catalogo(centros, stats)
+    documento_de = documento_de_cada_centro(documentos)
+    for centro in centros:
+        centro["catalogoDoc"] = documento_de[centro["codigo"]]
+    escribir(db, centros, set(stats))
     resumen_catalogo(documentos)
     escribir_catalogo(db, documentos, estandar)
 

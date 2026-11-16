@@ -55,6 +55,12 @@ def _partir(resumenes, limite_bytes):
     return partes
 
 
+def documento_de_cada_centro(documentos):
+    """{codigo: doc_id}: stored as centros/{codigo}.catalogoDoc so the functions can update
+    the centro's average in its catalogue document directly."""
+    return {c["codigo"]: doc_id for doc_id, d in documentos.items() for c in d["centros"]}
+
+
 def documentos_catalogo(centros, stats_por_codigo, limite_bytes=LIMITE_BYTES):
     """{doc_id: {provincia, parte, partes, centros: [resumen...]}} keeping the input order."""
     por_provincia = collections.OrderedDict()

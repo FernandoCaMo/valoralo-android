@@ -5,7 +5,8 @@ Ejecutar:  python -m unittest discover -s tools/import
 import json
 import unittest
 
-from catalogo import LIMITE_BYTES, documentos_catalogo, id_documento, resumen_centro, tamano_estimado
+from catalogo import (LIMITE_BYTES, documento_de_cada_centro, documentos_catalogo, id_documento,
+                      resumen_centro, tamano_estimado)
 
 
 def centro(codigo, provincia="Huelva", nombre=None):
@@ -62,6 +63,16 @@ class DocumentosTest(unittest.TestCase):
         self.assertEqual([str(i) for i in range(30)], codigos)  # nothing lost or duplicated
         for d in docs.values():
             self.assertLessEqual(tamano_estimado(d["centros"]), limite)
+
+    def test_documento_de_cada_centro(self):
+        centros = [centro(str(i), nombre="X" * 200) for i in range(30)] + [centro("S1", provincia="Sevilla")]
+        limite = tamano_estimado([resumen_centro(centros[0], None)] * 12)
+        docs = documentos_catalogo(centros, {}, limite_bytes=limite)
+        mapa = documento_de_cada_centro(docs)
+        self.assertEqual("huelva-1", mapa["0"])
+        self.assertEqual("huelva-3", mapa["29"])
+        self.assertEqual("sevilla-1", mapa["S1"])
+        self.assertEqual(31, len(mapa))
 
     def test_usa_las_notas_existentes(self):
         docs = documentos_catalogo([centro("1")], {"1": {"n": 2, "global": 3.5}})
