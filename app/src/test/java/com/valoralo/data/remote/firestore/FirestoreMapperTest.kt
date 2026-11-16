@@ -2,7 +2,10 @@ package com.valoralo.data.remote.firestore
 
 import com.valoralo.domain.model.Ensenanza
 import com.valoralo.domain.model.EstadoValoracion
+import com.valoralo.domain.model.Fragmento
 import com.valoralo.domain.model.Fuente
+import com.valoralo.domain.model.OrigenRevision
+import com.valoralo.domain.model.Revision
 import com.valoralo.domain.model.NotaDepartamento
 import com.valoralo.domain.model.Rol
 import com.valoralo.domain.model.StatsDepartamento
@@ -130,6 +133,23 @@ class FirestoreMapperTest {
         assertEquals(3, valoracion.instalaciones.nota)
         assertEquals(listOf(NotaDepartamento("Matemáticas", 4)), valoracion.profesorado)
         assertEquals(EstadoValoracion.PUBLICADA, valoracion.estado)
+    }
+
+    @Test
+    fun `una valoracion en revision trae el origen y los fragmentos marcados`() {
+        val v = mapOf<String, Any?>(
+            "uid" to "u1", "rolAutor" to "OTRO", "centro" to mapOf("nota" to 3L), "instalaciones" to mapOf("nota" to 3L),
+            "texto" to "juan explica fatal", "estado" to "EN_REVISION",
+            "revision" to mapOf(
+                "origen" to "FILTRO",
+                "fragmentos" to listOf(mapOf("inicio" to 0L, "fin" to 4L, "texto" to "juan", "motivo" to "NOMBRE_DUDOSO")),
+            ),
+        ).aValoracion("u1")!!
+        assertEquals(EstadoValoracion.EN_REVISION, v.estado)
+        assertEquals(
+            Revision(OrigenRevision.FILTRO, listOf(Fragmento(0, 4, "juan", "NOMBRE_DUDOSO"))),
+            v.revision,
+        )
     }
 
     @Test

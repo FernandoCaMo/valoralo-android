@@ -3,7 +3,10 @@ package com.valoralo.data.remote.firestore
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.Ensenanza
 import com.valoralo.domain.model.EstadoValoracion
+import com.valoralo.domain.model.Fragmento
 import com.valoralo.domain.model.Fuente
+import com.valoralo.domain.model.OrigenRevision
+import com.valoralo.domain.model.Revision
 import com.valoralo.domain.model.NotaCentro
 import com.valoralo.domain.model.NotaDepartamento
 import com.valoralo.domain.model.NotaInstalaciones
@@ -120,6 +123,21 @@ fun Map<String, Any?>.aValoracion(id: String): Valoracion? {
         },
         texto = texto("texto"),
         estado = enumONull<EstadoValoracion>(get("estado")) ?: EstadoValoracion.EN_REVISION,
+        revision = (get("revision") as? Map<*, *>)?.let { r ->
+            val origen = enumONull<OrigenRevision>(r["origen"]) ?: return@let null
+            Revision(origen, aFragmentos(r["fragmentos"]))
+        },
+    )
+}
+
+/** List of fragments as sent by the functions (also used in callable error details). */
+fun aFragmentos(valor: Any?): List<Fragmento> = (valor as? List<*>).orEmpty().mapNotNull { item ->
+    val f = item as? Map<*, *> ?: return@mapNotNull null
+    Fragmento(
+        inicio = f.entero("inicio") ?: -1,
+        fin = f.entero("fin") ?: -1,
+        texto = f["texto"] as? String ?: return@mapNotNull null,
+        motivo = f["motivo"] as? String ?: "",
     )
 }
 

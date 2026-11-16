@@ -22,9 +22,28 @@ data class Valoracion(
     val profesorado: List<NotaDepartamento> = emptyList(),
     val texto: String,
     val estado: EstadoValoracion = EstadoValoracion.PUBLICADA,
+    /** Why it is under review (only visible to its author). */
+    val revision: Revision? = null,
 ) {
     /** Shows the "Docente verificado" badge. */
     val esDocenteVerificado: Boolean get() = rolAutor == Rol.DOCENTE && verificado
+}
+
+enum class OrigenRevision { FILTRO, DENUNCIAS, MODERACION }
+
+data class Revision(val origen: OrigenRevision, val fragmentos: List<Fragmento>)
+
+/** A fragment marked by the text filter; [inicio]/[fin] index the review text (-1 = department name). */
+data class Fragmento(val inicio: Int, val fin: Int, val texto: String, val motivo: String) {
+    val explicacion: String
+        get() = when (motivo) {
+            "INSULTO" -> "insulto"
+            "INSULTO_DUDOSO" -> "posible insulto"
+            "NOMBRE_PROPIO" -> "nombre de una persona"
+            "NOMBRE_DUDOSO" -> "posible nombre de una persona"
+            "DATO_PERSONAL" -> "dato personal (correo, teléfono o enlace)"
+            else -> "texto no permitido"
+        }
 }
 
 data class NotaCentro(
