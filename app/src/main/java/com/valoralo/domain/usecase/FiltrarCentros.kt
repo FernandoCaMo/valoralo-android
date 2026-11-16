@@ -19,12 +19,13 @@ data class FiltroCentros(
         copy(provincia = provincia, municipio = null)
 }
 
-/** Search by nombre or municipio (case- and accent-insensitive) plus the filters. */
+/** Search by nombre, localidad or municipio (case- and accent-insensitive) plus the filters. */
 fun List<Centro>.filtrar(texto: String, filtro: FiltroCentros): List<Centro> {
     val consulta = texto.normalizado()
     return filter { centro ->
         (consulta.isEmpty() ||
             centro.nombre.normalizado().contains(consulta) ||
+            centro.localidad.normalizado().contains(consulta) ||
             centro.municipio.normalizado().contains(consulta)) &&
             (filtro.provincia == null || centro.provincia == filtro.provincia) &&
             (filtro.municipio == null || centro.municipio == filtro.municipio) &&

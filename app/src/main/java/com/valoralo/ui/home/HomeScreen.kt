@@ -204,7 +204,7 @@ private fun TarjetaCentro(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    centro.localidad(),
+                    centro.ubicacion(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -242,6 +242,11 @@ private fun SinResultados(hayFiltros: Boolean, onLimpiarFiltros: () -> Unit) {
     }
 }
 
-/** "Dos Hermanas (Sevilla)" or just "Sevilla" when municipio and provincia match. */
-fun Centro.localidad(): String =
-    if (municipio == provincia) municipio else "$municipio ($provincia)"
+/**
+ * "Dos Hermanas (Sevilla)", or just "Sevilla" when municipio and provincia match.
+ * When the localidad differs from the municipio: "Aguadulce, Roquetas de Mar (Almería)".
+ */
+fun Centro.ubicacion(): String {
+    val lugar = if (localidad.isNotBlank() && localidad != municipio) "$localidad, $municipio" else municipio
+    return if (lugar == provincia) lugar else "$lugar ($provincia)"
+}

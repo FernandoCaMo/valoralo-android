@@ -49,6 +49,13 @@ class FiltrarCentrosTest {
     }
 
     @Test
+    fun `busca tambien por localidad`() {
+        val aguadulce = centro("4", "CEIP Torrequebrada", "Roquetas de Mar", "Almería")
+            .copy(localidad = "Aguadulce")
+        assertEquals(listOf(aguadulce), (todos + aguadulce).filtrar("aguadulce", FiltroCentros()))
+    }
+
+    @Test
     fun `filtra por provincia`() {
         assertEquals(listOf(sevilla, dosHermanas), todos.filtrar("", FiltroCentros(provincia = "Sevilla")))
     }
