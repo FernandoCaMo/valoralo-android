@@ -36,6 +36,7 @@ import com.valoralo.ui.detail.DetailViewModel
 import com.valoralo.ui.favorites.FavoritesScreen
 import com.valoralo.ui.home.HomeScreen
 import com.valoralo.ui.review.ReviewScreen
+import com.valoralo.ui.verify.VerificarDocenteScreen
 import com.valoralo.ui.review.ReviewViewModel
 import kotlinx.coroutines.launch
 
@@ -153,8 +154,10 @@ fun ValoraloRoot(
                     onCrearCuenta = { navController.navigate(Rutas.REGISTRO) },
                     onCompletarPerfil = { navController.navigate(Rutas.COMPLETAR_PERFIL) },
                     onAcercaDe = { navController.navigate(Rutas.ACERCA_DE) },
+                    onVerificar = { navController.navigate(Rutas.VERIFICAR_DOCENTE) },
                 )
             }
+            composable(Rutas.VERIFICAR_DOCENTE) { VerificarDocenteScreen(onVolver = { navController.popBackStack() }) }
             composable(Rutas.ACERCA_DE) { AboutScreen(onVolver = { navController.popBackStack() }) }
             composable(Rutas.LOGIN) {
                 LoginScreen(
@@ -193,7 +196,7 @@ private fun NavDestination.pestana(): Pestana? =
     Pestana.entries.firstOrNull { it.ruta == route }
         ?: when (route) {
             Rutas.CENTRO, Rutas.VALORAR -> Pestana.INICIO
-            Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL -> Pestana.CUENTA
+            Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL, Rutas.VERIFICAR_DOCENTE -> Pestana.CUENTA
             else -> null
         }
 

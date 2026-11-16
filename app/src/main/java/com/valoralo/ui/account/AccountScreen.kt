@@ -64,6 +64,7 @@ fun AccountScreen(
     onCrearCuenta: () -> Unit,
     onCompletarPerfil: () -> Unit,
     onAcercaDe: () -> Unit,
+    onVerificar: () -> Unit,
     viewModel: MiCuentaViewModel = hiltViewModel(),
 ) {
     val sesion by viewModel.sesion.collectAsStateWithLifecycle()
@@ -81,7 +82,7 @@ fun AccountScreen(
                     Button(onClick = onCompletarPerfil) { Text("Completar perfil") }
                 }
             } else {
-                ConSesion(s, s.perfil, viewModel)
+                ConSesion(s, s.perfil, viewModel, onVerificar)
             }
         }
 
@@ -118,7 +119,7 @@ private fun SinSesion(onIniciarSesion: () -> Unit, onCrearCuenta: () -> Unit) {
 }
 
 @Composable
-private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCuentaViewModel) {
+private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCuentaViewModel, onVerificar: () -> Unit) {
     var editarAlias by rememberSaveable { mutableStateOf(false) }
     var eliminar by rememberSaveable { mutableStateOf(false) }
     var cambiarRol by rememberSaveable { mutableStateOf(false) }
@@ -145,7 +146,7 @@ private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCue
         }
     }
     if (!(perfil.rol == Rol.DOCENTE && perfil.verificado)) {
-        Opcion(Icons.Outlined.School, "Soy docente", "Verificación con la hoja de servicios. Próximamente.", habilitada = false) {}
+        Opcion(Icons.Outlined.School, "Soy docente", "Verifícate con la hoja de servicios del Portal del docente", onClick = onVerificar)
     }
     Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borran tu perfil y tu acceso", flecha = false, peligro = true) { eliminar = true }
 

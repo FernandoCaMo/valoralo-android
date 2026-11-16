@@ -19,6 +19,7 @@ object Rutas {
     const val FAVORITOS = "favoritos"
     const val CUENTA = "cuenta"
     const val ACERCA_DE = "cuenta/acerca-de"
+    const val VERIFICAR_DOCENTE = "cuenta/verificar-docente"
     const val LOGIN = "login"
     const val REGISTRO = "registro"
     const val COMPLETAR_PERFIL = "registro/perfil"

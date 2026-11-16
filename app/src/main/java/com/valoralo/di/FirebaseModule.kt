@@ -3,6 +3,7 @@ package com.valoralo.di
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.functions.FirebaseFunctions
+import com.google.firebase.storage.FirebaseStorage
 import com.valoralo.BuildConfig
 import dagger.Module
 import dagger.Provides
@@ -30,6 +31,12 @@ object FirebaseModule {
     @Singleton
     fun provideAuth(): FirebaseAuth = FirebaseAuth.getInstance().apply {
         if (BuildConfig.USAR_EMULADORES) useEmulator(HOST_EMULADORES, 9099)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStorage(): FirebaseStorage = FirebaseStorage.getInstance().apply {
+        if (BuildConfig.USAR_EMULADORES) useEmulator(HOST_EMULADORES, 9199)
     }
 
     /** Same region as Firestore and the functions (Madrid). */

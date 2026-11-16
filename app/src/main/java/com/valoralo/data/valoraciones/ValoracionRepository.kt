@@ -46,10 +46,11 @@ fun errorDeFuncion(codigo: String, mensaje: String?, detalles: Any?): ErrorPubli
             ErrorPublicacion(TipoErrorPublicacion.DATOS_NO_VALIDOS, mensaje ?: TipoErrorPublicacion.DATOS_NO_VALIDOS.mensaje)
         }
         "UNAUTHENTICATED" -> ErrorPublicacion(TipoErrorPublicacion.SIN_SESION)
-        "ALREADY_EXISTS" -> ErrorPublicacion(TipoErrorPublicacion.YA_DENUNCIADA)
+        "ALREADY_EXISTS" -> ErrorPublicacion(TipoErrorPublicacion.YA_DENUNCIADA, mensaje ?: TipoErrorPublicacion.YA_DENUNCIADA.mensaje)
         "UNAVAILABLE", "DEADLINE_EXCEEDED" -> ErrorPublicacion(TipoErrorPublicacion.SIN_CONEXION)
         // Messages written by our functions are already in Spanish.
-        "FAILED_PRECONDITION", "NOT_FOUND" -> ErrorPublicacion(TipoErrorPublicacion.OTRO, mensaje ?: TipoErrorPublicacion.OTRO.mensaje)
+        "FAILED_PRECONDITION", "NOT_FOUND", "RESOURCE_EXHAUSTED", "PERMISSION_DENIED" ->
+            ErrorPublicacion(TipoErrorPublicacion.OTRO, mensaje ?: TipoErrorPublicacion.OTRO.mensaje)
         else -> ErrorPublicacion(TipoErrorPublicacion.OTRO)
     }
 }
