@@ -63,6 +63,14 @@ centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
   profesorado:   [{ departamento, nota 1–5 }],
   texto, estado: "PUBLICADA" | "EN_REVISION" | "OCULTA"
 
+config/catalogo     { version }              // la escribe el script de importación; solo cambia al importar
+config/departamentos { porTipo: { "IES": [...], ... } }   // listas estándar por tipo
+
+Caché del catálogo (Room): Inicio lee los centros (con sus notas) de una caché local. En cada arranque
+se lee config/catalogo (1 lectura); el catálogo se vuelve a descargar si cambia la versión, si la caché
+tiene más de 24 horas o si cambia el formato de la caché. Sin red se muestra la caché. El detalle del
+centro y sus reseñas se leen siempre en directo de Firestore.
+
 usuarios/{uid}/favoritos/{codigo}
 denuncias/{id}  { centro, valoracionUid, autorUid, motivo, fecha, estado }
 
