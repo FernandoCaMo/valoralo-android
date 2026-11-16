@@ -2,6 +2,9 @@
  * End-to-end tests against the Auth + Firestore + Functions emulators:
  *   npm run test:integracion
  */
+import { execFileSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { beforeAll, describe, expect, test } from "vitest";
 import { crearCentro, crearUsuario, db, entradaCatalogo, esperar, llamar, stats, Usuario } from "./ayuda";
 
@@ -116,8 +119,35 @@ describe("denunciarValoracion", () => {
     // Editing does not republish a review that is under review because of reports.
     const editada = await llamar("publicarValoracion", formulario("Texto nuevo."), autor);
     expect(editada.result?.estado).toBe("EN_REVISION");
+    denunciada = autor;
+  });
+
+  test.skipIf(!existsSync(PYTHON))("el script de moderación la aprueba, resuelve las denuncias y vuelve a contar", async () => {
+    const listado = moderar("listar");
+    expect(listado).toContain(denunciada.uid);
+    expect(listado).toContain("DENUNCIAS");
+
+    moderar("aprobar", CODIGO, denunciada.uid);
+    expect((await db.doc(ruta(denunciada.uid)).get()).get("estado")).toBe("PUBLICADA");
+    expect((await esperar(() => stats(CODIGO), (s) => s?.total?.n === 4)).total.n).toBe(4);
+
+    // Old reports are resolved: a new one alone does not send it back to review.
+    const otro = await crearUsuario();
+    expect((await llamar("denunciarValoracion", { codigo: CODIGO, autorUid: denunciada.uid, motivo: "OTRO" }, otro)).result)
+      .toEqual({ denuncias: 1 });
+    expect((await db.doc(ruta(denunciada.uid)).get()).get("estado")).toBe("PUBLICADA");
   });
 });
+
+let denunciada: Usuario;
+const PYTHON = join(__dirname, "..", "..", "..", "tools", "import", ".venv", "Scripts", "python.exe");
+function moderar(...args: string[]): string {
+  const script = join(__dirname, "..", "..", "..", "tools", "moderacion", "moderar.py");
+  return execFileSync(PYTHON, [script, ...args, "--emulador", process.env.FIRESTORE_EMULATOR_HOST ?? "127.0.0.1:8080"], {
+    encoding: "utf-8",
+    env: { ...process.env, PYTHONIOENCODING: "utf-8" },
+  });
+}
 
 describe("eliminar cuenta", () => {
   test("al borrar usuarios/{uid} se borran sus reseñas y se recalculan las notas", async () => {

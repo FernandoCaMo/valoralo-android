@@ -137,8 +137,10 @@ export const denunciarValoracion = onCall(async (request) => {
     throw e;
   }
 
+  // Only pending reports count: after a moderator approves a review, its reports are resolved.
   const total = (await db().collection("denuncias")
-    .where("centro", "==", codigo).where("valoracionUid", "==", autorUid).count().get()).data().count;
+    .where("centro", "==", codigo).where("valoracionUid", "==", autorUid).where("estado", "==", "PENDIENTE")
+    .count().get()).data().count;
   if (total >= UMBRAL_DENUNCIAS) {
     await db().runTransaction(async (tx) => {
       const actual = await tx.get(valoracionRef);
