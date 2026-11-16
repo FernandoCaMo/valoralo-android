@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Valoralo · Verificaciones</title>
+  <link rel="stylesheet" href="estilos.css">
+</head>
+<body>
+  <header>
+    <h1>Valoralo · Verificación de docentes</h1>
+    <div id="usuario" hidden>
+      <span id="correo"></span>
+      <button id="salir" type="button" class="secundario">Cerrar sesión</button>
+    </div>
+  </header>
+
+  <main>
+    <p id="cargando">Cargando…</p>
+
+    <section id="acceso" hidden>
+      <p>Acceso solo para administradores de Valoralo.</p>
+      <button id="entrar" type="button">Entrar con Google</button>
+    </section>
+
+    <section id="sin-acceso" hidden>
+      <h2>Sin acceso</h2>
+      <p>Esta cuenta no es administradora de Valoralo.</p>
+    </section>
+
+    <section id="panel" hidden>
+      <div class="barra">
+        <h2>Solicitudes pendientes <span id="total"></span></h2>
+        <button id="recargar" type="button" class="secundario">Actualizar</button>
+      </div>
+      <p class="nota">
+        Comprueba cada documento en la <a id="enlace-junta" target="_blank" rel="noopener noreferrer">web de verificación de la Junta</a>.
+        Al resolver, se borran el nombre, el CSV y el PDF; solo queda la huella del CSV.
+      </p>
+      <p id="vacio" hidden>No hay solicitudes pendientes.</p>
+      <div id="lista"></div>
+    </section>
+
+    <p id="error" class="error" role="alert" hidden></p>
+  </main>
+
+  <template id="plantilla-solicitud">
+    <article class="solicitud">
+      <div class="cabecera">
+        <h3 class="alias"></h3>
+        <span class="antiguedad"></span>
+      </div>
+      <dl>
+        <dt>Nombre declarado</dt><dd class="nombre"></dd>
+        <dt>CSV</dt><dd><code class="csv"></code> <button type="button" class="copiar secundario">Copiar</button></dd>
+        <dt>Alta en Valoralo</dt><dd class="alta"></dd>
+        <dt>Solicitud</dt><dd class="fecha"></dd>
+        <dt>PDF</dt><dd class="pdf"></dd>
+        <dt>UID</dt><dd><code class="uid"></code></dd>
+      </dl>
+      <ul class="comprobaciones"></ul>
+      <div class="acciones">
+        <label>Centro actual (opcional) <input class="centro" inputmode="numeric" maxlength="8" placeholder="21000693"></label>
+        <button type="button" class="aprobar">Aprobar</button>
+      </div>
+      <div class="acciones">
+        <label class="ancho">Motivo del rechazo (lo verá el usuario)
+          <textarea class="motivo" maxlength="300" rows="2"></textarea></label>
+        <button type="button" class="rechazar peligro">Rechazar</button>
+      </div>
+      <p class="error resultado" hidden></p>
+    </article>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "name": "valoralo-admin",
+  "private": true,
+  "type": "module",
+  "description": "Panel de verificación de docentes (Firebase Hosting, sitio valoralo-admin). Sin paso de compilación.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
