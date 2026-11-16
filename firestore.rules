@@ -31,7 +31,34 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Everything else (usuarios, verificaciones, denuncias, csvUsados…) stays
+    // User profile. The user creates it at sign-up as ESTUDIANTE or OTRO, unverified and
+    // 14+, and afterwards can only change the alias. rol = DOCENTE and verificado are
+    // written only by the backend (Admin SDK), after the teacher verification (doc 04).
+    // The birth date is not stored, only mayorDe14 (data minimisation, GDPR).
+    match /usuarios/{uid} {
+      function esPropio() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      function aliasValido(alias) {
+        return alias is string && alias.size() >= 3 && alias.size() <= 30;
+      }
+      allow read: if esPropio();
+      allow create: if esPropio()
+        && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
+        && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
+        && aliasValido(request.resource.data.alias)
+        && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']
+        && request.resource.data.verificado == false
+        && request.resource.data.mayorDe14 == true
+        && request.resource.data.fechaAlta == request.time;
+      allow update: if esPropio()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias'])
+        && aliasValido(request.resource.data.alias);
+      // Account deletion (Google Play / GDPR).
+      allow delete: if esPropio();
+    }
+
+    // Everything else (favoritos, verificaciones, denuncias, csvUsados…) stays
     // closed until its phase defines the rules.
     match /{document=**} {
       allow read, write: if false;

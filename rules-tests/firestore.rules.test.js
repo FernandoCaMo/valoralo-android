@@ -16,6 +16,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  serverTimestamp,
   where,
 } from "firebase/firestore";
 
@@ -118,16 +119,78 @@ describe("config", () => {
   });
 });
 
-describe("todo lo demás está cerrado", () => {
-  test("usuarios: ni el propio usuario puede escribir su rol o verificado", async () => {
-    await assertFails(updateDoc(doc(usuario("autorA"), "usuarios/autorA"), { rol: "DOCENTE" }));
-    await assertFails(updateDoc(doc(usuario("autorA"), "usuarios/autorA"), { verificado: true }));
-    await assertFails(setDoc(doc(usuario("autorZ"), "usuarios/autorZ"), { rol: "DOCENTE", verificado: true }));
+describe("usuarios", () => {
+  const perfil = (cambios = {}) => ({
+    alias: "Lucía R.", rol: "ESTUDIANTE", verificado: false, mayorDe14: true,
+    fechaAlta: serverTimestamp(), ...cambios,
   });
 
-  test("usuarios, verificaciones y colecciones desconocidas no se leen", async () => {
-    await assertFails(getDoc(doc(usuario("autorA"), "usuarios/autorA")));
+  test("cada usuario crea su propio documento como ESTUDIANTE u OTRO", async () => {
+    await assertSucceeds(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil()));
+    await assertSucceeds(setDoc(doc(usuario("nuevo2"), "usuarios/nuevo2"), perfil({ rol: "OTRO" })));
+  });
+
+  test("no puede crear el documento de otro ni sin sesión", async () => {
+    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/otro"), perfil()));
+    await assertFails(setDoc(doc(anonimo(), "usuarios/nuevo1"), perfil()));
+  });
+
+  test("al crearlo no puede ser DOCENTE, ni verificado, ni menor de 14", async () => {
+    const db = usuario("nuevo1");
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ rol: "DOCENTE" })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ rol: "ADMIN" })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ verificado: true })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ mayorDe14: false })));
+  });
+
+  test("al crearlo los campos deben ser exactamente los del modelo", async () => {
+    const db = usuario("nuevo1");
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaNacimiento: "2000-01-01" })));
+    const { mayorDe14, ...sinMayorDe14 } = perfil();
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), sinMayorDe14));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaAlta: new Date(2020, 0, 1) })));
+  });
+
+  test("alias de 3 a 30 caracteres", async () => {
+    const db = usuario("nuevo1");
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: "Lu" })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: "x".repeat(31) })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: 42 })));
+  });
+
+  test("lee su propio documento pero no el de otros", async () => {
+    await assertSucceeds(getDoc(doc(usuario("autorA"), "usuarios/autorA")));
+    await assertFails(getDoc(doc(usuario("autorB"), "usuarios/autorA")));
+    await assertFails(getDoc(doc(anonimo(), "usuarios/autorA")));
+  });
+
+  test("solo puede cambiar su alias", async () => {
+    const ref = doc(usuario("autorA"), "usuarios/autorA");
+    await assertSucceeds(updateDoc(ref, { alias: "Nuevo alias" }));
+    await assertFails(updateDoc(ref, { alias: "No" }));
+    await assertFails(updateDoc(doc(usuario("autorB"), "usuarios/autorA"), { alias: "Intruso" }));
+  });
+
+  test("nunca puede pasar a DOCENTE ni tocar verificado", async () => {
+    const ref = doc(usuario("autorA"), "usuarios/autorA");
+    await assertFails(updateDoc(ref, { rol: "DOCENTE" }));
+    await assertFails(updateDoc(ref, { rol: "OTRO" }));
+    await assertFails(updateDoc(ref, { verificado: true }));
+    await assertFails(updateDoc(ref, { alias: "Cambio", verificado: true }));
+    await assertFails(setDoc(ref, { alias: "A", rol: "DOCENTE", verificado: true, mayorDe14: true, fechaAlta: serverTimestamp() }));
+  });
+
+  test("puede borrar su propio documento (eliminar cuenta), no el de otros", async () => {
+    await assertFails(deleteDoc(doc(usuario("autorB"), "usuarios/autorA")));
+    await assertSucceeds(deleteDoc(doc(usuario("autorA"), "usuarios/autorA")));
+  });
+});
+
+describe("todo lo demás está cerrado", () => {
+  test("verificaciones y colecciones desconocidas no se leen ni se escriben", async () => {
     await assertFails(getDoc(doc(usuario("autorA"), "verificaciones/autorA")));
+    await assertFails(setDoc(doc(usuario("autorA"), "verificaciones/autorA"), { estado: "APROBADA" }));
+    await assertFails(getDoc(doc(usuario("autorA"), "usuarios/autorA/favoritos/21000693")));
     await assertFails(getDoc(doc(anonimo(), "loquesea/x")));
     await assertFails(setDoc(doc(usuario(), "denuncias/d1"), { motivo: "x" }));
   });
