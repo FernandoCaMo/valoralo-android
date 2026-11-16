@@ -63,11 +63,17 @@ centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
   profesorado:   [{ departamento, nota 1–5 }],
   texto, estado: "PUBLICADA" | "EN_REVISION" | "OCULTA"
 
-config/catalogo     { version }              // la escribe el script de importación; solo cambia al importar
+config/catalogo     { version, partes: ["almeria-1", ...] }   // la escribe el script de importación; solo cambia al importar
+catalogo/{provincia}-{parte}                  // catálogo resumido para Inicio y los filtros (lectura pública)
+  provincia, parte, partes,
+  centros: [{ codigo, nombre, tipo, localidad, municipio, niveles: [String], nota (stats.total.global), resenas (stats.total.n) }]
+  // Una parte por provincia mientras quepa con margen bajo 1 MiB (Sevilla, la mayor, ~200 KiB); si no, se divide.
+  // Fase 5: onValoracionWrite actualizará también la nota y el nº de reseñas del centro en su documento de catálogo.
 config/departamentos { porTipo: { "IES": [...], ... } }   // listas estándar por tipo
 
 Caché del catálogo (Room): Inicio lee los centros (con sus notas) de una caché local. En cada arranque
-se lee config/catalogo (1 lectura); el catálogo se vuelve a descargar si cambia la versión, si la caché
+se lee config/catalogo (1 lectura); el catálogo se vuelve a descargar (los documentos catalogo/*, ~8
+lecturas, en paralelo y con "Descargando centros…" y su progreso) si cambia la versión, si la caché
 tiene más de 24 horas o si cambia el formato de la caché. Sin red se muestra la caché. El detalle del
 centro y sus reseñas se leen siempre en directo de Firestore.
 
@@ -81,7 +87,7 @@ csvUsados/{csvHash} { uid, fecha }       // evita reutilizar un documento
 
 Cloud Functions
 
-onValoracionWrite → recalcula centros/{codigo}.stats (total y por rol; cada grupo con su desglose por departamento).
+onValoracionWrite → recalcula centros/{codigo}.stats (total y por rol; cada grupo con su desglose por departamento) y actualiza nota y resenas del centro en su documento catalogo/{provincia}-{parte}.
 solicitarVerificacion → crea la solicitud y comprueba que el CSV no se ha usado.
 resolverVerificacion (solo administradores) → aprueba o rechaza, pone los custom claims, borra el PDF y actualiza el rolAutor de las reseñas previas del usuario: solo las que tenían rolAutor "OTRO" pasan a "DOCENTE"; las escritas como "ESTUDIANTE" no se tocan.
 onDenuncia → al llegar a N denuncias pasa la reseña a EN_REVISION.
