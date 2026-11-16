@@ -26,7 +26,7 @@ especialidad;nombre_en_plantilla;departamento
 590104;CONSTRUC. CIVILES Y EDIFICACION P.E.S;Edificación y Obra Civil
 590105;FORMACION Y ORIENTACION LABORAL P.E.S.;Formación y Orientación Laboral
 590106;HOSTELERIA Y TURISMO P.E.S.;Hostelería y Turismo
-590107;INFORMATICA P.E.S.;Informática
+590107;INFORMATICA P.E.S.;Informática y Comunicaciones
 590108;INTERVENCION SOCIOCOMUNITARIA P.E.S.;Servicios Socioculturales y a la Comunidad
 590109;NAVEGACION E INSTALACIONES MARINAS P.E.S;Marítimo-Pesquera
 590110;ORGANIZACION Y GESTION COMERCIAL P.E.S.;Comercio y Marketing
@@ -56,7 +56,7 @@ especialidad;nombre_en_plantilla;departamento
 590221;PROCESOS COMERCIALES;Comercio y Marketing
 590222;PROC. GESTIÓN ADMINISTRATIVA;Administración y Gestión
 590225;SERVICIOS A LA COMUNIDAD;Servicios Socioculturales y a la Comunidad
-590227;SISTEMAS Y APLIC. INFORMÁTICOS;Informática
+590227;SISTEMAS Y APLIC. INFORMÁTICOS;Informática y Comunicaciones
 590229;TEC. Y PROC. DE IMAGEN Y SONIDO;Imagen y Sonido
 590231;EQUIPOS ELECTRÓNICOS;Electricidad y Electrónica
 590803;CULTURA CLASICA P.E.S.;Latín y Griego
@@ -68,7 +68,7 @@ especialidad;nombre_en_plantilla;departamento
 591226;SERVICIOS DE RESTAURACION PTFP (PCPI);Hostelería y Turismo
 591505;PCPI DE AUX.AGRIC.Y TRANSF. AGROALIMENT.;Agraria
 591507;PCPI DE AUX.INST.ELECTROTEC. Y COMUNIC.;Electricidad y Electrónica
-591519;PCPI DE AUXILIAR INFORMATICO;Informática
+591519;PCPI DE AUXILIAR INFORMATICO;Informática y Comunicaciones
 592001;ALEMAN P.E.O.I.;Alemán
 592002;ARABE P.E.O.I.;Árabe
 592004;CHINO P.E.O.I.;Chino

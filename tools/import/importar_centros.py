@@ -21,6 +21,7 @@ centros nuevos, así que no pisa las valoraciones agregadas.
 import argparse
 import collections
 import csv
+import datetime
 import io
 import json
 import os
@@ -28,6 +29,7 @@ import sys
 import unicodedata
 import urllib.request
 
+from departamentos import asignar, cargar_estandar, cargar_tabla, departamentos_por_centro
 from mapeo import fila_a_centro, ignoradas_con_s
 
 URL_CSV_2024_25 = (
@@ -35,6 +37,14 @@ URL_CSV_2024_25 = (
     "e039df22-4b82-4d0d-9884-0ab5952e24e4/resource/b5924e81-0b53-4418-9d93-b1f39ba1ef65/download/da_centros.csv"
 )
 CURSO_2024_25 = "2024/2025"
+URL_PLANTILLA_2025_26 = (
+    "https://www.juntadeandalucia.es/datosabiertos/portal/dataset/"
+    "b2b4a3f6-690e-4e0e-b2ab-50e3da65c08b/resource/a639f1f4-c949-421f-887d-65496d9d69dd/download/plantilla_organica_2025_2026.csv"
+)
+CURSO_PLANTILLA_2025_26 = "2025/2026"
+AQUI = os.path.dirname(os.path.abspath(__file__))
+TABLA_ESPECIALIDADES = os.path.join(AQUI, "especialidades_departamentos.csv")
+TABLA_ESTANDAR = os.path.join(AQUI, "departamentos_estandar.csv")
 LOTE = 400  # Firestore allows 500 writes per batch
 
 
@@ -49,14 +59,25 @@ def _normalizar(texto):
     return "".join(c for c in sin_tildes if unicodedata.category(c) != "Mn")
 
 
-def leer_csv(ruta_o_url):
+def leer_csv(ruta_o_url, delimitador=";"):
     if ruta_o_url.startswith("https://"):
         with urllib.request.urlopen(ruta_o_url, timeout=120) as respuesta:
             datos = respuesta.read()
     else:
         with open(ruta_o_url, "rb") as f:
             datos = f.read()
-    return list(csv.DictReader(io.StringIO(datos.decode("utf-8-sig")), delimiter=";"))
+    return list(csv.DictReader(io.StringIO(datos.decode("utf-8-sig")), delimiter=delimitador))
+
+
+def anadir_departamentos(centros, filas_plantilla, curso_plantilla, estandar):
+    """Fills departamentos / departamentosFuente / departamentosCurso. Returns warnings."""
+    por_centro, desconocidas = departamentos_por_centro(filas_plantilla, cargar_tabla(TABLA_ESPECIALIDADES))
+    for centro in centros:
+        lista, fuente, curso = asignar(centro["codigo"], centro["tipo"], por_centro, estandar, curso_plantilla)
+        centro["departamentos"] = lista
+        centro["departamentosFuente"] = fuente
+        centro["departamentosCurso"] = curso
+    return [f"especialidad sin fila en la tabla: {p} ({n} filas)" for p, n in desconocidas.items()]
 
 
 def transformar(filas, provincia, curso):
@@ -99,6 +120,11 @@ def resumen(centros, excluidos, avisos):
             print(f"  {n:5}  {denominacion}")
     sin = {campo: sum(1 for c in centros if not c[campo]) for campo in ("telefono", "email", "cp", "geo")}
     print(f"Sin dato: {sin}")
+    origen = collections.Counter(c.get("departamentosFuente") for c in centros)
+    print(f"Departamentos: {dict(origen)}")
+    estandar_por_tipo = collections.Counter(c["tipo"] for c in centros if c.get("departamentosFuente") == "estandar")
+    if estandar_por_tipo:
+        print(f"  lista estándar por tipo: {dict(estandar_por_tipo.most_common())}")
     for aviso in avisos:
         print(f"AVISO {aviso}")
 
@@ -131,6 +157,17 @@ def cliente_firestore(args):
     return firestore.client()
 
 
+def escribir_config(db, estandar):
+    """config/departamentos (standard lists) and config/catalogo (cache version for the app).
+
+    The version only changes when the catalogue is imported, never with reviews.
+    """
+    db.document("config/departamentos").set({"porTipo": estandar})
+    version = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    db.document("config/catalogo").set({"version": version})
+    print(f"config/catalogo.version = {version}")
+
+
 def escribir(db, centros):
     from google.cloud.firestore import GeoPoint
 
@@ -156,6 +193,9 @@ def main(argv=None):
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--csv", default=URL_CSV_2024_25, help="Ruta local o URL https del CSV (por defecto, 2024/25)")
     p.add_argument("--curso", default=CURSO_2024_25, help="Curso del CSV, p. ej. 2024/2025")
+    p.add_argument("--plantilla", default=URL_PLANTILLA_2025_26,
+                   help="Ruta local o URL https de la plantilla orgánica (por defecto, 2025/26)")
+    p.add_argument("--curso-plantilla", default=CURSO_PLANTILLA_2025_26, help="Curso de la plantilla")
     p.add_argument("--provincia", help="Importar solo esta provincia (p. ej. Huelva)")
     destino = p.add_mutually_exclusive_group(required=True)
     destino.add_argument("--dry-run", action="store_true", help="No escribe; genera --salida")
@@ -170,6 +210,8 @@ def main(argv=None):
         p.error("--emulador necesita --proyecto (p. ej. demo-valoralo)")
 
     centros, excluidos, avisos = transformar(leer_csv(args.csv), args.provincia, args.curso)
+    estandar = cargar_estandar(TABLA_ESTANDAR)
+    avisos += anadir_departamentos(centros, leer_csv(args.plantilla, ","), args.curso_plantilla, estandar)
     resumen(centros, excluidos, avisos)
 
     if args.dry_run:
@@ -178,7 +220,9 @@ def main(argv=None):
         print(f"Dry-run: nada escrito en Firestore. JSON en {args.salida}")
         return
 
-    escribir(cliente_firestore(args), centros)
+    db = cliente_firestore(args)
+    escribir(db, centros)
+    escribir_config(db, estandar)
 
 
 if __name__ == "__main__":
