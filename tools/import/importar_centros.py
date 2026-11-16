@@ -29,6 +29,7 @@ import sys
 import unicodedata
 import urllib.request
 
+from catalogo import documentos_catalogo, tamano_estimado
 from departamentos import asignar, cargar_estandar, cargar_tabla, departamentos_por_centro
 from mapeo import fila_a_centro, ignoradas_con_s
 
@@ -157,23 +158,44 @@ def cliente_firestore(args):
     return firestore.client()
 
 
-def escribir_config(db, estandar):
-    """config/departamentos (standard lists) and config/catalogo (cache version for the app).
+def resumen_catalogo(documentos):
+    for doc_id, d in sorted(documentos.items()):
+        print(f"  catalogo/{doc_id}: {len(d['centros'])} centros, ~{tamano_estimado(d['centros']) // 1024} KiB")
 
-    The version only changes when the catalogue is imported, never with reviews.
+
+def escribir_catalogo(db, documentos, estandar):
+    """catalogo/{provincia}-{parte}, config/departamentos and config/catalogo {version, partes}.
+
+    Parts of the imported provincias that are no longer needed are deleted; parts of
+    other provincias (when importing only one) are kept. The version only changes on
+    import, never with reviews.
     """
+    importadas = {d["provincia"] for d in documentos.values()}
+    for ref in db.collection("catalogo").list_documents():
+        snap = ref.get()
+        if snap.exists and snap.get("provincia") in importadas and ref.id not in documentos:
+            ref.delete()
+    for doc_id, datos in documentos.items():
+        db.document(f"catalogo/{doc_id}").set(datos)
+    partes = sorted(ref.id for ref in db.collection("catalogo").list_documents())
+
     db.document("config/departamentos").set({"porTipo": estandar})
     version = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    db.document("config/catalogo").set({"version": version})
-    print(f"config/catalogo.version = {version}")
+    db.document("config/catalogo").set({"version": version, "partes": partes})
+    print(f"config/catalogo.version = {version}; partes = {partes}")
 
 
 def escribir(db, centros):
+    """Writes centros/{codigo}. Returns {codigo: stats.total} of the centros that already existed."""
     from google.cloud.firestore import GeoPoint
 
     coleccion = db.collection("centros")
     refs = [coleccion.document(c["codigo"]) for c in centros]
-    existentes = {snap.id for snap in db.get_all(refs) if snap.exists}
+    stats_existentes = {}
+    for snap in db.get_all(refs):
+        if snap.exists:
+            stats_existentes[snap.id] = (snap.to_dict().get("stats") or {}).get("total")
+    existentes = set(stats_existentes)
 
     nuevos = 0
     for inicio in range(0, len(centros), LOTE):
@@ -187,6 +209,7 @@ def escribir(db, centros):
             lote.set(ref, datos, merge=True)
         lote.commit()
     print(f"Escritos {len(centros)} centros ({nuevos} nuevos, {len(centros) - nuevos} actualizados).")
+    return stats_existentes
 
 
 def main(argv=None):
@@ -215,14 +238,17 @@ def main(argv=None):
     resumen(centros, excluidos, avisos)
 
     if args.dry_run:
+        resumen_catalogo(documentos_catalogo(centros, {}))
         with open(args.salida, "w", encoding="utf-8") as f:
             json.dump(a_json(centros), f, ensure_ascii=False, indent=2)
         print(f"Dry-run: nada escrito en Firestore. JSON en {args.salida}")
         return
 
     db = cliente_firestore(args)
-    escribir(db, centros)
-    escribir_config(db, estandar)
+    stats = escribir(db, centros)
+    documentos = documentos_catalogo(centros, stats)
+    resumen_catalogo(documentos)
+    escribir_catalogo(db, documentos, estandar)
 
 
 if __name__ == "__main__":
