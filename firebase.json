@@ -3,6 +3,9 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "functions": [
     {
       "source": "functions",
@@ -11,10 +14,29 @@
       "predeploy": ["npm --prefix \"$RESOURCE_DIR\" run build"]
     }
   ],
-  "hosting": {
-    "public": "web",
-    "ignore": ["firebase.json", "**/.*"]
-  },
+  "hosting": [
+    {
+      "target": "web",
+      "public": "web",
+      "ignore": ["firebase.json", "**/.*"]
+    },
+    {
+      "target": "admin",
+      "public": "admin",
+      "ignore": ["firebase.json", "**/.*", "test/**", "package*.json", "node_modules/**"],
+      "headers": [
+        {
+          "source": "**",
+          "headers": [
+            { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+            { "key": "X-Frame-Options", "value": "DENY" },
+            { "key": "Referrer-Policy", "value": "no-referrer" },
+            { "key": "Cache-Control", "value": "no-store" }
+          ]
+        }
+      ]
+    }
+  ],
   "emulators": {
     "auth": {
       "port": 9099
@@ -24,6 +46,12 @@
     },
     "firestore": {
       "port": 8080
+    },
+    "storage": {
+      "port": 9199
+    },
+    "hosting": {
+      "port": 5000
     },
     "ui": {
       "enabled": true,

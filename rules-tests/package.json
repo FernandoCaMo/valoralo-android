@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Tests of firestore.rules against the Firestore emulator",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-valoralo \"node --test\"",
+    "test": "firebase emulators:exec --only firestore,storage --project demo-valoralo \"node --test\"",
     "test:emulador-abierto": "node --test"
   },
   "devDependencies": {

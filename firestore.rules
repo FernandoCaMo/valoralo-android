@@ -6,6 +6,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Administrators carry the custom claim admin = true (tools/admin/hacer_admin.py).
+    function esAdmin() {
+      return request.auth != null && request.auth.token.get('admin', false) == true;
+    }
+
     // Catalogue of centros, including stats: public read, no client writes.
     match /centros/{codigo} {
       allow read: if true;
@@ -46,7 +51,8 @@ service cloud.firestore {
       function aliasValido(alias) {
         return alias is string && alias.size() >= 3 && alias.size() <= 30;
       }
-      allow read: if esPropio();
+      // Administrators read profiles to review teacher verifications (alias, fechaAlta).
+      allow read: if esPropio() || esAdmin();
       allow create: if esPropio()
         && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
         && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
@@ -67,7 +73,22 @@ service cloud.firestore {
       allow delete: if esPropio();
     }
 
-    // Everything else (favoritos, verificaciones, denuncias, csvUsados…) stays
+    // Teacher verification (doc 04). Written only by the functions solicitarVerificacion,
+    // resolverVerificacion and caducarVerificaciones. The user reads their own status;
+    // administrators read everything.
+    match /verificaciones/{uid} {
+      allow read: if (request.auth != null && request.auth.uid == uid) || esAdmin();
+      allow write: if false;
+
+      // Declared name, plain CSV and PDF path: only administrators, and only while the
+      // request is pending (deleted when it is resolved or expires).
+      match /privado/{documento} {
+        allow read: if esAdmin();
+        allow write: if false;
+      }
+    }
+
+    // Everything else (favoritos, denuncias, csvUsados…) stays
     // closed until its phase defines the rules.
     match /{document=**} {
       allow read, write: if false;

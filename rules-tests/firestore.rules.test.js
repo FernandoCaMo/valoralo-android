@@ -212,10 +212,55 @@ describe("usuarios", () => {
   });
 });
 
-describe("todo lo demás está cerrado", () => {
-  test("verificaciones y colecciones desconocidas no se leen ni se escriben", async () => {
-    await assertFails(getDoc(doc(usuario("autorA"), "verificaciones/autorA")));
+describe("verificaciones de docentes", () => {
+  const admin = () => env.authenticatedContext("admin1", { admin: true }).firestore();
+
+  beforeEach(async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(doc(db, "verificaciones/autorA"), { estado: "PENDIENTE", csvHash: "abc" });
+      await setDoc(doc(db, "verificaciones/autorA/privado/solicitud"), { nombreDeclarado: "Lucía Ruiz", csv: "VH5DPX" });
+      await setDoc(doc(db, "csvUsados/abc"), { uid: "autorA", resultado: "RECHAZADA" });
+    });
+  });
+
+  test("el usuario lee su propia solicitud y nadie más (salvo administradores)", async () => {
+    await assertSucceeds(getDoc(doc(usuario("autorA"), "verificaciones/autorA")));
+    await assertFails(getDoc(doc(usuario("autorB"), "verificaciones/autorA")));
+    await assertFails(getDoc(doc(anonimo(), "verificaciones/autorA")));
+    await assertSucceeds(getDoc(doc(admin(), "verificaciones/autorA")));
+  });
+
+  test("el nombre declarado y el CSV en claro solo los leen administradores, ni siquiera el propio usuario", async () => {
+    await assertFails(getDoc(doc(usuario("autorA"), "verificaciones/autorA/privado/solicitud")));
+    await assertSucceeds(getDoc(doc(admin(), "verificaciones/autorA/privado/solicitud")));
+  });
+
+  test("una marca admin falsa o ausente no da acceso", async () => {
+    const noAdmin = env.authenticatedContext("x", { admin: "true" }).firestore();
+    await assertFails(getDoc(doc(noAdmin, "verificaciones/autorA/privado/solicitud")));
+  });
+
+  test("nadie escribe verificaciones desde el cliente, tampoco un administrador", async () => {
     await assertFails(setDoc(doc(usuario("autorA"), "verificaciones/autorA"), { estado: "APROBADA" }));
+    await assertFails(updateDoc(doc(admin(), "verificaciones/autorA"), { estado: "APROBADA" }));
+    await assertFails(setDoc(doc(usuario("autorA"), "verificaciones/autorA/privado/solicitud"), { csv: "X" }));
+  });
+
+  test("csvUsados está cerrado", async () => {
+    await assertFails(getDoc(doc(usuario("autorA"), "csvUsados/abc")));
+    await assertFails(getDoc(doc(admin(), "csvUsados/abc")));
+    await assertFails(setDoc(doc(usuario("autorA"), "csvUsados/xyz"), { uid: "autorA" }));
+  });
+
+  test("los administradores leen perfiles para revisar (alias, fecha de alta)", async () => {
+    await assertSucceeds(getDoc(doc(admin(), "usuarios/autorA")));
+    await assertFails(updateDoc(doc(admin(), "usuarios/autorA"), { rol: "DOCENTE" }));
+  });
+});
+
+describe("todo lo demás está cerrado", () => {
+  test("colecciones desconocidas no se leen ni se escriben", async () => {
     await assertFails(getDoc(doc(usuario("autorA"), "usuarios/autorA/favoritos/21000693")));
     await assertFails(getDoc(doc(anonimo(), "loquesea/x")));
   });

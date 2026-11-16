@@ -1,0 +1,25 @@
+rules_version = '2';
+
+// Valoralo — Cloud Storage rules. Only the optional PDF of the teacher verification
+// (doc 04): the user uploads it, only administrators read it, and the functions delete
+// it when the request is resolved or expires.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    match /verificaciones/{uid}/{archivo} {
+      // A new file only: the PDF cannot be replaced once uploaded.
+      allow create: if request.auth != null
+        && request.auth.uid == uid
+        && resource == null
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf'
+        && archivo.matches('[A-Za-z0-9_-]{1,64}\\.pdf');
+      allow read, delete: if request.auth != null && request.auth.token.get('admin', false) == true;
+      allow update: if false;
+    }
+
+    match /{todo=**} {
+      allow read, write: if false;
+    }
+  }
+}

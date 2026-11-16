@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "valoralo-dc735"
+  },
+  "targets": {
+    "valoralo-dc735": {
+      "hosting": {
+        "web": ["valoralo-dc735"],
+        "admin": ["valoralo-admin"]
+      }
+    }
   }
 }
