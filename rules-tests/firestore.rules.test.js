@@ -104,6 +104,13 @@ describe("valoraciones", () => {
   });
 });
 
+describe("catalogo", () => {
+  test("lectura pública y sin escritura", async () => {
+    await assertSucceeds(getDoc(doc(anonimo(), "catalogo/huelva-1")));
+    await assertFails(setDoc(doc(usuario(), "catalogo/huelva-1"), { centros: [] }));
+  });
+});
+
 describe("config", () => {
   test("lectura pública y sin escritura", async () => {
     await assertSucceeds(getDoc(doc(anonimo(), "config/departamentos")));

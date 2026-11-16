@@ -19,6 +19,12 @@ service cloud.firestore {
       }
     }
 
+    // Summarised catalogue by provincia, downloaded by the app on first launch.
+    match /catalogo/{documento} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // App configuration (e.g. config/departamentos): public read.
     match /config/{documento} {
       allow read: if true;
