@@ -1,0 +1,21 @@
+tipo;departamentos
+CEIP;Educación Infantil|Educación Primaria|Inglés|Francés|Educación Física|Música|Pedagogía Terapéutica y Audición y Lenguaje
+CEPR;Educación Primaria|Inglés|Francés|Educación Física|Música|Pedagogía Terapéutica y Audición y Lenguaje
+CPR;Educación Infantil|Educación Primaria|Inglés|Educación Física|Música|Pedagogía Terapéutica y Audición y Lenguaje
+IES;Lengua Castellana y Literatura|Matemáticas|Geografía e Historia|Inglés|Francés|Física y Química|Biología y Geología|Tecnología|Dibujo|Música|Educación Física|Filosofía|Latín y Griego|Economía|Orientación
+SES;Lengua Castellana y Literatura|Matemáticas|Geografía e Historia|Inglés|Francés|Física y Química|Biología y Geología|Tecnología|Educación Física|Orientación
+CIFP;Formación y Orientación Laboral|Inglés|Orientación
+CEEE;Educación Especial|Pedagogía Terapéutica y Audición y Lenguaje|Orientación
+CEPER;Ámbito de Comunicación|Ámbito Científico-Tecnológico|Ámbito Social|Inglés
+SEP;Ámbito de Comunicación|Ámbito Científico-Tecnológico|Ámbito Social|Inglés
+IPEP;Ámbito de Comunicación|Ámbito Científico-Tecnológico|Ámbito Social|Inglés|Orientación
+SIPEP;Ámbito de Comunicación|Ámbito Científico-Tecnológico|Ámbito Social|Inglés
+EOI;Inglés|Francés|Alemán|Italiano|Español para Extranjeros
+CEM;Composición y Teoría Musical|Tecla|Cuerda|Viento Madera|Viento Metal|Percusión|Guitarra
+CPM;Composición y Teoría Musical|Tecla|Cuerda|Viento Madera|Viento Metal|Percusión|Guitarra|Canto|Agrupaciones y Dirección
+CPD;Danza|Composición y Teoría Musical|Tecla
+CSM;Composición y Teoría Musical|Tecla|Cuerda|Viento Madera|Viento Metal|Percusión|Guitarra|Canto|Agrupaciones y Dirección
+CSD;Danza|Composición y Teoría Musical|Tecla
+EA;Dibujo Artístico y Volumen|Diseño Gráfico y Audiovisual|Diseño de Interiores y de Producto|Artes Aplicadas y Oficios Artísticos|Historia del Arte
+EASD;Dibujo Artístico y Volumen|Diseño Gráfico y Audiovisual|Diseño de Interiores y de Producto|Diseño de Moda|Artes Aplicadas y Oficios Artísticos|Historia del Arte|Organización Industrial y Legislación
+ESAD;Interpretación|Dirección Escénica y Dramaturgia|Escenografía y Técnicas Escénicas

@@ -29,7 +29,11 @@ centros/{codigo}
   ensenanzas: [{ nivel, nombre }],     // solo nivel y modalidad (MVP), p. ej.
                                        // { "Bachillerato", "Bachillerato semipresencial / a distancia" },
                                        // { "FP Grado Superior", "FP Grado Superior" }; sin ciclos concretos
-  departamentos: [String],             // [] al importar (el dataset no los trae)
+  departamentos: [String],             // de la plantilla orgánica (tools/import/especialidades_departamentos.csv)
+                                       // o, si el centro no tiene plantilla, la lista estándar por tipo
+                                       // (tools/import/departamentos_estandar.csv)
+  departamentosFuente: "plantilla" | "estandar",
+  departamentosCurso?,                 // curso de la plantilla, p. ej. "2025/2026"
   fuente: { dataset, curso },          // p. ej. { "directorio-de-centros-docentes-de-andalucia", "2024/2025" }
   stats: {                             // lo escribe solo una Cloud Function
     total:      { n, global, centro, instalaciones, profesorado,
