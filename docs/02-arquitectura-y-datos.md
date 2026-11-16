@@ -7,7 +7,10 @@ Room como caché local del catálogo y de favoritos.
 minSdk 26. Repositorio: https://github.com/FernandoCaMo/valoralo-android
 Fuente de datos (Andalucía)
 Consejería de Desarrollo Educativo y FP — Consulta de centros: https://www.juntadeandalucia.es/educacion/vscripts/centros/index.asp
-Portal de datos abiertos de la Junta: https://www.juntadeandalucia.es/datosabiertos/portal.html (y su réplica en datos.gob.es). Pendiente: localizar el dataset del directorio de centros con enseñanzas (CSV/JSON).
+Portal de datos abiertos de la Junta: https://www.juntadeandalucia.es/datosabiertos/portal.html (y su réplica en datos.gob.es).
+Dataset elegido: "Directorio de centros docentes no universitarios de Andalucía" (https://www.juntadeandalucia.es/datosabiertos/portal/dataset/directorio-de-centros-docentes-de-andalucia). CSV anual (UTF-8, separador ";"), licencia CC BY 4.0. Trae identificación, dirección, contacto, coordenadas y las enseñanzas como columnas S/N por nivel y modalidad. No trae ciclos concretos (p. ej. DAM), departamentos ni web.
+Atribución obligatoria (CC BY 4.0): "Fuente: Junta de Andalucía, CC BY 4.0" en el detalle de cada centro y en la pantalla "Acerca de".
+Tipos de centro públicos que se importan: CEIP, CEPR, CPR, IES, SES, CIFP, CEEE, CEPER, SEP, IPEP (y sus secciones), EOI, conservatorios, escuelas de arte y ESAD. Se excluyen: escuelas infantiles de 0 a 3 años, escuelas municipales de música y danza, centros de convenio e Instituto Andaluz del Deporte.
 Respaldo: Registro Estatal de Centros Docentes (https://www.educacion.gob.es/centros/), filtrando por Andalucía.
 Clave única: código de centro (8 dígitos).
 Un script de importación (Python, en tools/import/) carga los datos en Firestore. La app no hace scraping.
@@ -21,10 +24,13 @@ Rol elegido al registrarse: ESTUDIANTE u OTRO. DOCENTE solo tras la verificació
 Modelo de datos (Firestore)
 centros/{codigo}
   nombre, tipo (IES, CEIP, CEPR, CIFP, EOI, CPM…), titularidad: "PUBLICA",
-  direccion, cp, municipio, provincia, comunidad: "Andalucía",
-  telefono, email, web, geo (lat,lng), fotoUrl?,
-  ensenanzas: [{ nivel, nombre }],     // ESO, Bachillerato, FP GM "SMR", FP GS "DAM"…
-  departamentos: [String],
+  direccion, cp, localidad, municipio, codMunicipio (INE), provincia, comunidad: "Andalucía",
+  telefono, email, web?, geo (lat,lng), fotoUrl?,
+  ensenanzas: [{ nivel, nombre }],     // solo nivel y modalidad (MVP), p. ej.
+                                       // { "Bachillerato", "Bachillerato semipresencial / a distancia" },
+                                       // { "FP Grado Superior", "FP Grado Superior" }; sin ciclos concretos
+  departamentos: [String],             // [] al importar (el dataset no los trae)
+  fuente: { dataset, curso },          // p. ej. { "directorio-de-centros-docentes-de-andalucia", "2024/2025" }
   stats: {                             // lo escribe solo una Cloud Function
     total:      { n, global, centro, instalaciones, profesorado,
                   porDepartamento: { "Matemáticas": { n, media }, ... } },
@@ -73,7 +79,9 @@ Consulta "filtrar por rol": valoraciones.where("rolAutor","==",X).orderBy("fecha
 
 Rutas de navegación
 
-home · search · centro/{codigo} · centro/{codigo}/valorar · compare?ids=a,b,c · favoritos · cuenta · cuenta/verificar-docente · login · registro
+home · search · centro/{codigo} · centro/{codigo}/valorar · compare?ids=a,b,c · favoritos · cuenta · cuenta/verificar-docente · cuenta/acerca-de · login · registro
+
+Búsqueda: por nombre, localidad o municipio (sin distinguir mayúsculas ni tildes).
 
 Estructura del repo
 valoralo-android/
