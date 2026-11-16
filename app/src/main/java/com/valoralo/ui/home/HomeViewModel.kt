@@ -11,6 +11,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -26,6 +27,8 @@ data class OpcionesFiltro(
 
 data class HomeUiState(
     val cargando: Boolean = true,
+    /** The catalogue could not be loaded (no network, permissions…). */
+    val error: Boolean = false,
     val texto: String = "",
     val filtro: FiltroCentros = FiltroCentros(),
     val centros: List<Centro> = emptyList(),
@@ -49,7 +52,8 @@ class HomeViewModel @Inject constructor(
                 centros = centros.filtrar(texto, filtro),
                 opciones = opcionesPara(centros, filtro),
             )
-        }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+        }.catch { emit(HomeUiState(cargando = false, error = true)) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
     fun onTextoChange(nuevo: String) = texto.update { nuevo }
 

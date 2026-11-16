@@ -109,6 +109,9 @@ private fun DetailContent(
             DetailUiState.NoEncontrado -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 Text("No hemos encontrado este centro.")
             }
+            DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
+                Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
+            }
             is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding)
         }
     }

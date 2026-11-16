@@ -15,6 +15,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -23,6 +24,7 @@ import javax.inject.Inject
 sealed interface DetailUiState {
     data object Cargando : DetailUiState
     data object NoEncontrado : DetailUiState
+    data object Error : DetailUiState
     data class Listo(
         val centro: Centro,
         val filtroRol: FiltroRol,
@@ -61,7 +63,8 @@ class DetailViewModel @Inject constructor(
                 resenas = valoraciones.filtrarPor(filtro),
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailUiState.Cargando)
+    }.catch { emit(DetailUiState.Error) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailUiState.Cargando)
 
     fun onFiltroRolChange(filtro: FiltroRol) = filtroRol.update { filtro }
 

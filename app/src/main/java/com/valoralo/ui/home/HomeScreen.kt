@@ -107,6 +107,13 @@ private fun HomeContent(
             state.cargando -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
+            state.error -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                Text(
+                    "No se han podido cargar los centros. Comprueba tu conexión e inténtalo de nuevo.",
+                    style = MaterialTheme.typography.bodyLarge,
+                    textAlign = TextAlign.Center,
+                )
+            }
             state.centros.isEmpty() -> SinResultados(
                 hayFiltros = state.filtro.hayActivos,
                 onLimpiarFiltros = onLimpiarFiltros,
