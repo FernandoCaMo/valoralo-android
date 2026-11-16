@@ -53,7 +53,7 @@ beforeEach(async () => {
       uid: "autorB", rolAutor: "OTRO", verificado: false, estado: "EN_REVISION",
     });
     await setDoc(doc(db, "config/departamentos"), { IES: ["Matemáticas"] });
-    await setDoc(doc(db, "usuarios/autorA"), { alias: "A", rol: "ESTUDIANTE", verificado: false });
+    await setDoc(doc(db, "usuarios/autorA"), { alias: "Autor A", rol: "ESTUDIANTE", verificado: false });
     await setDoc(doc(db, "verificaciones/autorA"), { estado: "PENDIENTE" });
   });
 });
@@ -171,10 +171,26 @@ describe("usuarios", () => {
     await assertFails(updateDoc(doc(usuario("autorB"), "usuarios/autorA"), { alias: "Intruso" }));
   });
 
+  test("puede cambiar entre ESTUDIANTE y OTRO", async () => {
+    const ref = doc(usuario("autorA"), "usuarios/autorA");
+    await assertSucceeds(updateDoc(ref, { rol: "OTRO" }));
+    await assertSucceeds(updateDoc(ref, { rol: "ESTUDIANTE", alias: "Otro alias" }));
+  });
+
+  test("un docente verificado no cambia su rol desde la app", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "usuarios/docente1"),
+        { alias: "Profe", rol: "DOCENTE", verificado: true, mayorDe14: true, fechaAlta: new Date() });
+    });
+    const ref = doc(usuario("docente1"), "usuarios/docente1");
+    await assertFails(updateDoc(ref, { rol: "OTRO" }));
+    await assertSucceeds(updateDoc(ref, { alias: "Profe Nuevo" }));
+  });
+
   test("nunca puede pasar a DOCENTE ni tocar verificado", async () => {
     const ref = doc(usuario("autorA"), "usuarios/autorA");
     await assertFails(updateDoc(ref, { rol: "DOCENTE" }));
-    await assertFails(updateDoc(ref, { rol: "OTRO" }));
+    await assertFails(updateDoc(ref, { rol: "ADMIN" }));
     await assertFails(updateDoc(ref, { verificado: true }));
     await assertFails(updateDoc(ref, { alias: "Cambio", verificado: true }));
     await assertFails(setDoc(ref, { alias: "A", rol: "DOCENTE", verificado: true, mayorDe14: true, fechaAlta: serverTimestamp() }));

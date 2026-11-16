@@ -32,7 +32,7 @@ service cloud.firestore {
     }
 
     // User profile. The user creates it at sign-up as ESTUDIANTE or OTRO, unverified and
-    // 14+, and afterwards can only change the alias. rol = DOCENTE and verificado are
+    // 14+. rol = DOCENTE and verificado are
     // written only by the backend (Admin SDK), after the teacher verification (doc 04).
     // The birth date is not stored, only mayorDe14 (data minimisation, GDPR).
     match /usuarios/{uid} {
@@ -51,9 +51,14 @@ service cloud.firestore {
         && request.resource.data.verificado == false
         && request.resource.data.mayorDe14 == true
         && request.resource.data.fechaAlta == request.time;
+      // Afterwards: alias, and rol only between ESTUDIANTE and OTRO (never to or from
+      // DOCENTE). Reviews already written keep their rolAutor.
       allow update: if esPropio()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias'])
-        && aliasValido(request.resource.data.alias);
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias', 'rol'])
+        && aliasValido(request.resource.data.alias)
+        && (request.resource.data.rol == resource.data.rol
+            || (resource.data.rol in ['ESTUDIANTE', 'OTRO']
+                && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']));
       // Account deletion (Google Play / GDPR).
       allow delete: if esPropio();
     }
