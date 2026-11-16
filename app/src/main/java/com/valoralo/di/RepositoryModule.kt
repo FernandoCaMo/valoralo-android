@@ -1,5 +1,7 @@
 package com.valoralo.di
 
+import com.valoralo.data.auth.CuentaRepository
+import com.valoralo.data.auth.FirebaseCuentaRepository
 import com.valoralo.data.local.room.RoomCatalogoLocal
 import com.valoralo.data.remote.firestore.FirestoreCentrosRemoto
 import com.valoralo.data.repository.CatalogoLocal
@@ -24,4 +26,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindCentrosRemoto(impl: FirestoreCentrosRemoto): CentrosRemoto
+
+    @Binds
+    abstract fun bindCuentaRepository(impl: FirebaseCuentaRepository): CuentaRepository
 }

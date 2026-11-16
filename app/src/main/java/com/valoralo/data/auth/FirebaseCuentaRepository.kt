@@ -1,0 +1,187 @@
+package com.valoralo.data.auth
+
+import android.util.Log
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.auth.EmailAuthProvider
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseAuthException
+import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.valoralo.domain.model.PerfilNuevo
+import com.valoralo.domain.model.Rol
+import com.valoralo.domain.model.Sesion
+import com.valoralo.domain.model.Usuario
+import com.valoralo.domain.usecase.normalizarAlias
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import javax.inject.Singleton
+
+@Singleton
+class FirebaseCuentaRepository @Inject constructor(
+    private val auth: FirebaseAuth,
+    private val db: FirebaseFirestore,
+) : CuentaRepository {
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    init {
+        auth.setLanguageCode("es") // password reset e-mails in Spanish
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override val sesion: StateFlow<Sesion> = usuarioAuth()
+        .flatMapLatest { usuario -> if (usuario == null) flowOf(Sesion.SinSesion) else sesionDe(usuario) }
+        .stateIn(scope, SharingStarted.Eagerly, Sesion.Cargando)
+
+    private fun usuarioAuth(): Flow<FirebaseUser?> = callbackFlow {
+        val listener = FirebaseAuth.AuthStateListener { trySend(it.currentUser) }
+        auth.addAuthStateListener(listener)
+        awaitClose { auth.removeAuthStateListener(listener) }
+    }
+
+    /** Emits once the profile document has been read (perfil = null means "not created yet"). */
+    private fun sesionDe(usuario: FirebaseUser): Flow<Sesion> = callbackFlow {
+        val conGoogle = usuario.providerData.any { it.providerId == GoogleAuthProvider.PROVIDER_ID }
+        val registro = perfil(usuario.uid).addSnapshotListener { snap, error ->
+            if (error != null) {
+                // E.g. right after deleting the account; the auth listener will follow.
+                Log.w(TAG, "Error leyendo el perfil", error)
+                return@addSnapshotListener
+            }
+            val datos = snap?.takeIf { it.exists() }
+            trySend(
+                Sesion.Iniciada(
+                    uid = usuario.uid,
+                    correo = usuario.email,
+                    perfil = datos?.let {
+                        Usuario(
+                            uid = usuario.uid,
+                            alias = it.getString("alias").orEmpty(),
+                            rol = Rol.entries.firstOrNull { r -> r.name == it.getString("rol") } ?: Rol.OTRO,
+                            verificado = it.getBoolean("verificado") ?: false,
+                        )
+                    },
+                    conGoogle = conGoogle,
+                ),
+            )
+        }
+        awaitClose { registro.remove() }
+    }
+
+    override suspend fun iniciarSesion(correo: String, contrasena: String) = traducirErrores {
+        auth.signInWithEmailAndPassword(correo.trim(), contrasena).await()
+        Unit
+    }
+
+    override suspend fun registrar(correo: String, contrasena: String, perfil: PerfilNuevo) = traducirErrores {
+        val usuario = auth.createUserWithEmailAndPassword(correo.trim(), contrasena).await().user
+            ?: throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO)
+        try {
+            escribirPerfil(usuario.uid, perfil)
+        } catch (e: Exception) {
+            // Don't leave an Auth account without profile behind.
+            runCatching { usuario.delete().await() }
+            throw e
+        }
+    }
+
+    override suspend fun iniciarConGoogle(idToken: String) = traducirErrores {
+        auth.signInWithCredential(GoogleAuthProvider.getCredential(idToken, null)).await()
+        Unit
+    }
+
+    override suspend fun crearPerfil(perfil: PerfilNuevo) = traducirErrores {
+        escribirPerfil(usuarioActual().uid, perfil)
+    }
+
+    override suspend fun cancelarRegistro() = traducirErrores {
+        auth.currentUser?.delete()?.await()
+        auth.signOut()
+        Unit
+    }
+
+    override suspend fun cambiarAlias(alias: String) = traducirErrores {
+        perfil(usuarioActual().uid).update("alias", normalizarAlias(alias)).await()
+        Unit
+    }
+
+    override suspend fun recuperarContrasena(correo: String) = traducirErrores {
+        auth.sendPasswordResetEmail(correo.trim()).await()
+        Unit
+    }
+
+    override suspend fun cerrarSesion() {
+        auth.signOut()
+    }
+
+    override suspend fun eliminarCuenta(reautenticacion: Reautenticacion) = traducirErrores {
+        val usuario = usuarioActual()
+        val credencial = when (reautenticacion) {
+            is Reautenticacion.ConContrasena ->
+                EmailAuthProvider.getCredential(usuario.email.orEmpty(), reautenticacion.contrasena)
+            is Reautenticacion.ConGoogle -> GoogleAuthProvider.getCredential(reautenticacion.idToken, null)
+        }
+        // Re-authenticate first so that nothing is deleted if the user can't prove who they are.
+        usuario.reauthenticate(credencial).await()
+        perfil(usuario.uid).delete().await()
+        usuario.delete().await()
+        // TODO(Fase 5): a Cloud Function on user deletion will also remove their reviews.
+        Unit
+    }
+
+    private suspend fun escribirPerfil(uid: String, perfil: PerfilNuevo) {
+        perfil(uid).set(
+            mapOf(
+                "alias" to normalizarAlias(perfil.alias),
+                "rol" to perfil.rol.name,
+                "verificado" to false,
+                "mayorDe14" to true,
+                "fechaAlta" to FieldValue.serverTimestamp(),
+            ),
+        ).await()
+    }
+
+    private fun perfil(uid: String) = db.collection("usuarios").document(uid)
+
+    private fun usuarioActual(): FirebaseUser =
+        auth.currentUser ?: throw ErrorCuenta(TipoErrorCuenta.REQUIERE_LOGIN_RECIENTE)
+
+    private suspend fun <T> traducirErrores(bloque: suspend () -> T): T = try {
+        bloque()
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: ErrorCuenta) {
+        throw e
+    } catch (e: FirebaseAuthException) {
+        throw ErrorCuenta(tipoErrorAuth(e.errorCode), e)
+    } catch (e: FirebaseNetworkException) {
+        throw ErrorCuenta(TipoErrorCuenta.SIN_CONEXION, e)
+    } catch (e: FirebaseFirestoreException) {
+        val tipo = if (e.code == FirebaseFirestoreException.Code.UNAVAILABLE) TipoErrorCuenta.SIN_CONEXION
+        else TipoErrorCuenta.DESCONOCIDO
+        throw ErrorCuenta(tipo, e)
+    } catch (e: Exception) {
+        Log.w(TAG, "Error de cuenta", e)
+        throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO, e)
+    }
+
+    private companion object {
+        const val TAG = "Cuenta"
+    }
+}
