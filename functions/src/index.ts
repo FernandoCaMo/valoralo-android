@@ -29,6 +29,7 @@ import { defineBoolean } from "firebase-functions/params";
 import { calcularStats, Rol, ValoracionParaStats } from "./calculo";
 import { cambiosModeracion, ErrorModeracion, validarModeracion } from "./moderacion";
 import { generarDestacadas, retirarDestacada } from "./destacadasOperaciones";
+import { haAceptadoCondiciones } from "./condiciones";
 import { construirValoracion, ErrorFiltro, PerfilAutor, ValoracionGuardada } from "./publicacion";
 import { ErrorValidacion, validarFormulario } from "./validacion";
 
@@ -41,7 +42,8 @@ setGlobalOptions({ region: "europe-southwest1", maxInstances: 10 });
  */
 const APP_CHECK_OBLIGATORIO = defineBoolean("APP_CHECK_OBLIGATORIO", { default: true });
 export const UMBRAL_DENUNCIAS = 3;
-const MOTIVOS_DENUNCIA = ["INSULTOS", "NOMBRE_PROPIO", "DATOS_PERSONALES", "FALSA_O_SPAM", "OTRO"];
+// USUARIO_ABUSIVO reports the author, not only this review (Play's user-generated content policy).
+const MOTIVOS_DENUNCIA = ["INSULTOS", "NOMBRE_PROPIO", "DATOS_PERSONALES", "FALSA_O_SPAM", "USUARIO_ABUSIVO", "OTRO"];
 
 function comprobarLlamada(request: CallableRequest): string {
   if (APP_CHECK_OBLIGATORIO.value() && !request.app) {
@@ -78,6 +80,9 @@ export const publicarValoracion = onCall(async (request) => {
   const perfilSnap = await db().doc(`usuarios/${uid}`).get();
   if (!perfilSnap.exists) throw new HttpsError("failed-precondition", "Completa tu perfil antes de valorar.");
   const p = perfilSnap.data()!;
+  if (!haAceptadoCondiciones(p)) {
+    throw new HttpsError("failed-precondition", "Acepta las condiciones de uso antes de publicar.", { motivo: "CONDICIONES" });
+  }
   const perfil: PerfilAutor = { uid, alias: p.alias, rol: p.rol as Rol, verificado: p.verificado === true };
 
   const contexto = {
@@ -357,5 +362,6 @@ export const alBorrarUsuario = onDocumentDeleted("usuarios/{uid}", async (event)
   // Subcollections are not deleted with their parent document.
   await db().recursiveDelete(db().collection(`usuarios/${uid}/favoritos`));
   await db().recursiveDelete(db().collection(`usuarios/${uid}/limites`));
+  await db().recursiveDelete(db().collection(`usuarios/${uid}/bloqueados`));
   logger.info("Cuenta eliminada: datos borrados", { uid, valoraciones: valoraciones.size, denuncias: denuncias.size, likes: likes.size });
 });

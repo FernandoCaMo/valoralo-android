@@ -55,8 +55,18 @@ export const MOTIVO_DENUNCIA = {
   NOMBRE_PROPIO: "Nombra a una persona",
   DATOS_PERSONALES: "Datos personales",
   FALSA_O_SPAM: "Falsa o spam",
+  USUARIO_ABUSIVO: "El usuario publica de forma abusiva",
   OTRO: "Otro motivo",
 };
+
+/**
+ * reCAPTCHA Enterprise site key for App Check (Google Cloud → Seguridad → reCAPTCHA).
+ * It is public by design. Empty = the panel runs without App Check (only until it is set).
+ */
+export const CLAVE_RECAPTCHA = "";
+
+/** App Check is used on the real panel, never against the local emulators. */
+export const usarAppCheck = (clave, hostname) => Boolean(clave) && !["localhost", "127.0.0.1"].includes(hostname);
 
 /**
  * Splits a text into plain and marked pieces from the filter fragments ({inicio, fin}),

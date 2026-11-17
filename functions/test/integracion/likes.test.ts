@@ -84,19 +84,21 @@ describe("contador nLikes", () => {
     await esperar(async () => (await db.collection(`${ruta(autor.uid)}/likes`).get()).size, (n) => n === 0);
   });
 
-  test("borrar una cuenta borra sus likes (y se descuentan) y su contador por hora", async () => {
+  test("borrar una cuenta borra sus likes (y se descuentan), su contador por hora y sus bloqueos", async () => {
     const autor = await crearUsuario();
     const lector = await crearUsuario();
     await llamar("publicarValoracion", formulario(), autor);
     await like(autor.uid, lector.uid);
     await like(autor.uid, "otro");
     await db.doc(`usuarios/${lector.uid}/limites/likes`).set({ inicio: Timestamp.now(), n: 1 });
+    await db.doc(`usuarios/${lector.uid}/bloqueados/${autor.uid}`).set({ fecha: Timestamp.now() });
     await esperar(() => nLikes(autor.uid), (n) => n === 2);
 
     await db.doc(`usuarios/${lector.uid}`).delete();
     await esperar(() => nLikes(autor.uid), (n) => n === 1);
     expect((await db.doc(`${ruta(autor.uid)}/likes/${lector.uid}`).get()).exists).toBe(false);
     await esperar(async () => (await db.doc(`usuarios/${lector.uid}/limites/likes`).get()).exists, (e) => e === false);
+    await esperar(async () => (await db.collection(`usuarios/${lector.uid}/bloqueados`).get()).size, (n) => n === 0);
   });
 });
 

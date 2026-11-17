@@ -34,6 +34,15 @@ describe("publicarValoracion", () => {
     expect(r.error?.status).toBe("UNAUTHENTICATED");
   });
 
+  test("sin aceptar las condiciones vigentes no se puede publicar", async () => {
+    const u = await crearUsuario("OTRO");
+    await db.doc(`usuarios/${u.uid}`).update({ condiciones: "2020-01" });
+    const r = await llamar("publicarValoracion", formulario(), u);
+    expect(r.error?.status).toBe("FAILED_PRECONDITION");
+    expect(r.error?.details).toMatchObject({ motivo: "CONDICIONES" });
+    expect((await db.doc(ruta(u.uid)).get()).exists).toBe(false);
+  });
+
   test("publica y recalcula las notas del centro y del catálogo", async () => {
     const r = await llamar("publicarValoracion", formulario(), estudiante);
     expect(r.result).toEqual({ estado: "PUBLICADA", fragmentos: [], origen: null });

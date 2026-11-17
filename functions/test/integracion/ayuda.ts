@@ -45,7 +45,7 @@ export async function crearUsuario(rol = "ESTUDIANTE", verificado = false, alias
     body: JSON.stringify({ email: correo, password: "valoralo2026", returnSecureToken: true }),
   });
   const datos = (await respuesta.json()) as { localId: string; idToken: string };
-  await db.doc(`usuarios/${datos.localId}`).set({ alias, rol, verificado, mayorDe14: true, fechaAlta: new Date() });
+  await db.doc(`usuarios/${datos.localId}`).set({ alias, rol, verificado, mayorDe14: true, fechaAlta: new Date(), condiciones: "2026-11" });
   return { uid: datos.localId, token: datos.idToken, correo };
 }
 

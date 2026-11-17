@@ -2,6 +2,7 @@
 // Hosted on the valoralo-admin Hosting site. Access: Google sign-in + custom claim admin = true;
 // the Firestore/Storage rules and the functions enforce the same check on the server.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app-check.js";
 import {
   connectAuthEmulator, getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut,
 } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
@@ -11,7 +12,7 @@ import {
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
 import { connectStorageEmulator, getDownloadURL, getStorage, ref } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import {
-  agruparDenuncias, comprobaciones, diasDesde, esAdmin, formatearFecha, MOTIVO_DENUNCIA, MOTIVOS_OCULTAR, ORIGEN_REVISION,
+  agruparDenuncias, CLAVE_RECAPTCHA, comprobaciones, usarAppCheck, diasDesde, esAdmin, formatearFecha, MOTIVO_DENUNCIA, MOTIVOS_OCULTAR, ORIGEN_REVISION,
   segmentos, textoDestacadas, URL_VERIFICACION_JUNTA, validarCentro, validarMotivo, validarNota,
 } from "./logica.js";
 
@@ -23,6 +24,10 @@ const aFecha = (t) => (t && typeof t.toDate === "function" ? t.toDate() : null);
 // Config of the project's web app, served by Firebase Hosting itself.
 const config = await (await fetch("/__/firebase/init.json")).json();
 const app = initializeApp(config);
+// App Check (reCAPTCHA Enterprise) before any other Firebase call, so every request carries its token.
+if (usarAppCheck(CLAVE_RECAPTCHA, location.hostname)) {
+  initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(CLAVE_RECAPTCHA), isTokenAutoRefreshEnabled: true });
+}
 const auth = getAuth(app);
 const db = getFirestore(app);
 const storage = getStorage(app);

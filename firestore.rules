@@ -99,9 +99,15 @@ service cloud.firestore {
       }
       // Administrators read profiles to review teacher verifications (alias, fechaAlta).
       allow read: if esPropio() || esAdmin();
+      // Version of the terms of use in force (web/condiciones.html). Keep in step with
+      // functions/src/condiciones.ts and the app (domain/model/Condiciones.kt).
+      function condicionesVigentes() {
+        return '2026-11';
+      }
       allow create: if esPropio()
-        && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
-        && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta'])
+        && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
+        && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
+        && request.resource.data.condiciones == condicionesVigentes()
         && aliasValido(request.resource.data.alias)
         && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']
         && request.resource.data.verificado == false
@@ -109,8 +115,11 @@ service cloud.firestore {
         && request.resource.data.fechaAlta == request.time;
       // Afterwards: alias, and rol only between ESTUDIANTE and OTRO (never to or from
       // DOCENTE). Reviews already written keep their rolAutor.
+      // Afterwards: alias, accepting the terms in force, and rol only between ESTUDIANTE and OTRO.
       allow update: if esPropio()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias', 'rol'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias', 'rol', 'condiciones'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['condiciones'])
+            || request.resource.data.condiciones == condicionesVigentes())
         && aliasValido(request.resource.data.alias)
         && (request.resource.data.rol == resource.data.rol
             || (resource.data.rol in ['ESTUDIANTE', 'OTRO']
@@ -126,6 +135,16 @@ service cloud.firestore {
           && codigo.matches('[0-9]{8}')
           && request.resource.data.keys().hasOnly(['codigo', 'fecha'])
           && request.resource.data.codigo == codigo
+          && request.resource.data.fecha == request.time;
+        allow update: if false;
+      }
+
+      // Blocked authors (Play's user-generated content policy): the user stops seeing their
+      // reviews. Only the owner; the id is the author's uid; alBorrarUsuario deletes them.
+      match /bloqueados/{autor} {
+        allow read, delete: if esPropio();
+        allow create: if esPropio() && autor != uid
+          && request.resource.data.keys().hasOnly(['fecha'])
           && request.resource.data.fecha == request.time;
         allow update: if false;
       }

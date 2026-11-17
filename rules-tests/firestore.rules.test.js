@@ -154,7 +154,21 @@ describe("destacadas", () => {
 describe("usuarios", () => {
   const perfil = (cambios = {}) => ({
     alias: "Lucía R.", rol: "ESTUDIANTE", verificado: false, mayorDe14: true,
-    fechaAlta: serverTimestamp(), ...cambios,
+    fechaAlta: serverTimestamp(), condiciones: "2026-11", ...cambios,
+  });
+
+  test("al registrarse hay que aceptar las condiciones vigentes", async () => {
+    const db = usuario("nuevo1");
+    const { condiciones, ...sinCondiciones } = perfil();
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), sinCondiciones));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ condiciones: "2020-01" })));
+    await assertSucceeds(setDoc(doc(db, "usuarios/nuevo1"), perfil()));
+  });
+
+  test("una cuenta existente acepta las condiciones vigentes (y no otras)", async () => {
+    const ref = doc(usuario("autorA"), "usuarios/autorA");
+    await assertFails(updateDoc(ref, { condiciones: "2020-01" }));
+    await assertSucceeds(updateDoc(ref, { condiciones: "2026-11" }));
   });
 
   test("cada usuario crea su propio documento como ESTUDIANTE u OTRO", async () => {
@@ -231,6 +245,27 @@ describe("usuarios", () => {
   test("puede borrar su propio documento (eliminar cuenta), no el de otros", async () => {
     await assertFails(deleteDoc(doc(usuario("autorB"), "usuarios/autorA")));
     await assertSucceeds(deleteDoc(doc(usuario("autorA"), "usuarios/autorA")));
+  });
+
+  describe("autores bloqueados", () => {
+    const bloqueo = (db, uid, autor) => doc(db, `usuarios/${uid}/bloqueados/${autor}`);
+
+    test("cada usuario bloquea, ve y desbloquea a sus bloqueados", async () => {
+      const db = usuario("autorA");
+      await assertSucceeds(setDoc(bloqueo(db, "autorA", "autorB"), { fecha: serverTimestamp() }));
+      await assertSucceeds(getDoc(bloqueo(db, "autorA", "autorB")));
+      await assertSucceeds(getDocs(collection(db, "usuarios/autorA/bloqueados")));
+      await assertSucceeds(deleteDoc(bloqueo(db, "autorA", "autorB")));
+    });
+
+    test("ni otros usuarios ni sin sesión; no a sí mismo; solo la fecha del servidor", async () => {
+      await assertFails(setDoc(bloqueo(usuario("autorB"), "autorA", "autorC"), { fecha: serverTimestamp() }));
+      await assertFails(getDocs(collection(usuario("autorB"), "usuarios/autorA/bloqueados")));
+      await assertFails(setDoc(bloqueo(anonimo(), "autorA", "autorB"), { fecha: serverTimestamp() }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorA"), { fecha: serverTimestamp() }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: new Date(2020, 0, 1) }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: serverTimestamp(), alias: "B" }));
+    });
   });
 });
 
