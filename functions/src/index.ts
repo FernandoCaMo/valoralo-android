@@ -98,7 +98,11 @@ export const publicarValoracion = onCall(async (request) => {
       fecha: Timestamp.fromDate(valoracion.fecha),
       actualizada: Timestamp.fromDate(valoracion.actualizada),
     });
-    return { estado: valoracion.estado, fragmentos: valoracion.revision?.fragmentos ?? [] };
+    return {
+      estado: valoracion.estado,
+      fragmentos: valoracion.revision?.fragmentos ?? [],
+      origen: valoracion.revision?.origen ?? null,
+    };
   });
 });
 

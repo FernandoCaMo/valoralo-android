@@ -57,17 +57,21 @@ import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.usecase.FiltroCentros
 import com.valoralo.ui.components.FotoCentro
+import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.LogoValoralo
+import com.valoralo.ui.components.TarjetaCentro
 import com.valoralo.ui.components.NotaMedia
 
 @Composable
 fun HomeScreen(
     onVerCentro: (codigo: String) -> Unit,
-    onComparar: (Centro) -> Unit,
+    acciones: AccionesCentroViewModel,
     enfocarBuscador: Boolean = false,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val favoritos by acciones.favoritos.collectAsStateWithLifecycle()
+    val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
     HomeContent(
         state = state,
         enfocarBuscador = enfocarBuscador,
@@ -75,7 +79,10 @@ fun HomeScreen(
         onFiltroChange = viewModel::onFiltroChange,
         onLimpiarFiltros = viewModel::limpiarFiltros,
         onVerCentro = onVerCentro,
-        onComparar = onComparar,
+        favoritos = favoritos.orEmpty(),
+        seleccion = seleccion,
+        onFavorito = acciones::alternarFavorito,
+        onComparar = acciones::alternarComparar,
     )
 }
 
@@ -88,7 +95,10 @@ private fun HomeContent(
     onFiltroChange: (FiltroCentros) -> Unit,
     onLimpiarFiltros: () -> Unit,
     onVerCentro: (String) -> Unit,
-    onComparar: (Centro) -> Unit,
+    favoritos: Set<String>,
+    seleccion: List<String>,
+    onFavorito: (String) -> Unit,
+    onComparar: (String) -> Unit,
 ) {
     var mostrarFiltros by rememberSaveable { mutableStateOf(false) }
 
@@ -125,8 +135,11 @@ private fun HomeContent(
                 items(state.centros, key = { it.codigo }) { centro ->
                     TarjetaCentro(
                         centro = centro,
+                        esFavorito = centro.codigo in favoritos,
+                        enComparador = centro.codigo in seleccion,
                         onVerMas = { onVerCentro(centro.codigo) },
-                        onComparar = { onComparar(centro) },
+                        onFavorito = { onFavorito(centro.codigo) },
+                        onComparar = { onComparar(centro.codigo) },
                     )
                 }
             }
@@ -192,43 +205,6 @@ private fun Buscador(
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
     )
-}
-
-@Composable
-private fun TarjetaCentro(
-    centro: Centro,
-    onVerMas: () -> Unit,
-    onComparar: () -> Unit,
-) {
-    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = onVerMas)) {
-        Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FotoCentro(centro.fotoUrl, Modifier.size(96.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    centro.nombre,
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    centro.ubicacion(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                NotaMedia(centro.stats.total.global, centro.stats.total.n)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onVerMas, contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                        Text("Ver más")
-                    }
-                    OutlinedButton(onClick = onComparar, contentPadding = ButtonDefaults.TextButtonContentPadding) {
-                        Text("Comparar")
-                    }
-                }
-            }
-        }
-    }
 }
 
 /** First launch: the catalogue is being downloaded (one document per provincia). */

@@ -93,7 +93,7 @@ fun ReviewScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             s.centro?.let { Text(it.nombre, style = MaterialTheme.typography.titleLarge) }
-            AvisoEstado(s.existente?.estado, s.existente?.revision?.origen)
+            AvisoEstado(s.existente?.estado, s.existente?.revision?.origen, s.existente?.motivoModeracion)
 
             Bloque("Centro en general", obligatorio = true) {
                 SelectorEstrellas(f.notaCentro, { n -> viewModel.cambiar { it.copy(notaCentro = n) } }, "Centro en general")
@@ -187,13 +187,15 @@ private fun Map<String, Int>.conNota(clave: String, nota: Int?): Map<String, Int
     if (nota == null || this[clave] == nota) this - clave else this + (clave to nota)
 
 @Composable
-private fun AvisoEstado(estado: EstadoValoracion?, origen: OrigenRevision?) {
+private fun AvisoEstado(estado: EstadoValoracion?, origen: OrigenRevision?, motivo: String?) {
     val texto = when (estado) {
         EstadoValoracion.EN_REVISION -> when (origen) {
             OrigenRevision.DENUNCIAS -> "Tu reseña está en revisión porque varias personas la han denunciado. Un moderador decidirá si se publica."
+            OrigenRevision.MODERACION -> "Tu reseña está en revisión: un moderador la ocultó y tiene que revisar tus cambios antes de publicarla."
             else -> "Tu reseña está en revisión. Corrige lo marcado y se publicará al guardar, o espera a que la revise un moderador."
         }
-        EstadoValoracion.OCULTA -> "Un moderador ha ocultado tu reseña. Si la editas, volverá a revisión."
+        EstadoValoracion.OCULTA -> "Un moderador ha ocultado tu reseña" + (motivo?.let { " (motivo: $it)" } ?: "") +
+            ". Si la editas, volverá a revisión y un moderador decidirá si se publica."
         else -> return
     }
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)) {

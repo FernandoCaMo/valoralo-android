@@ -36,7 +36,7 @@ describe("publicarValoracion", () => {
 
   test("publica y recalcula las notas del centro y del catálogo", async () => {
     const r = await llamar("publicarValoracion", formulario(), estudiante);
-    expect(r.result).toEqual({ estado: "PUBLICADA", fragmentos: [] });
+    expect(r.result).toEqual({ estado: "PUBLICADA", fragmentos: [], origen: null });
     const guardada = (await db.doc(ruta(estudiante.uid)).get()).data()!;
     expect(guardada).toMatchObject({ uid: estudiante.uid, rolAutor: "ESTUDIANTE", estado: "PUBLICADA", editada: false });
 
@@ -65,7 +65,7 @@ describe("publicarValoracion", () => {
   test("texto dudoso: queda en revisión fuera de las notas; al corregirlo se publica", async () => {
     const u = await crearUsuario("OTRO");
     const r = await llamar("publicarValoracion", formulario("juan explica fatal"), u);
-    expect(r.result).toMatchObject({ estado: "EN_REVISION", fragmentos: [{ texto: "juan", motivo: "NOMBRE_DUDOSO" }] });
+    expect(r.result).toMatchObject({ estado: "EN_REVISION", origen: "FILTRO", fragmentos: [{ texto: "juan", motivo: "NOMBRE_DUDOSO" }] });
     await new Promise((res) => setTimeout(res, 1500));
     expect((await stats(CODIGO)).total.n).toBe(2); // not counted
 

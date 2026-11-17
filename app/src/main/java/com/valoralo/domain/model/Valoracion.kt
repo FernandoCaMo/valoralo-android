@@ -24,6 +24,8 @@ data class Valoracion(
     val estado: EstadoValoracion = EstadoValoracion.PUBLICADA,
     /** Why it is under review (only visible to its author). */
     val revision: Revision? = null,
+    /** Reason shown to the author when a moderator hides the review. */
+    val motivoModeracion: String? = null,
 ) {
     /** Shows the "Docente verificado" badge. */
     val esDocenteVerificado: Boolean get() = rolAutor == Rol.DOCENTE && verificado

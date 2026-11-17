@@ -2,6 +2,7 @@ package com.valoralo.data.valoraciones
 
 import com.valoralo.data.remote.firestore.aFragmentos
 import com.valoralo.domain.model.Fragmento
+import com.valoralo.domain.model.OrigenRevision
 import com.valoralo.domain.model.Valoracion
 import com.valoralo.domain.usecase.FormularioValoracion
 import kotlinx.coroutines.flow.Flow
@@ -9,8 +10,11 @@ import kotlinx.coroutines.flow.Flow
 sealed interface ResultadoPublicacion {
     data object Publicada : ResultadoPublicacion
 
-    /** Saved but hidden until a moderator approves it (or the author edits the fragments). */
-    data class EnRevision(val fragmentos: List<Fragmento>) : ResultadoPublicacion
+    /**
+     * Saved but hidden until a moderator approves it. Only when [origen] is FILTRO does
+     * correcting the marked fragments publish it directly.
+     */
+    data class EnRevision(val fragmentos: List<Fragmento>, val origen: OrigenRevision?) : ResultadoPublicacion
 }
 
 enum class TipoErrorPublicacion(val mensaje: String) {

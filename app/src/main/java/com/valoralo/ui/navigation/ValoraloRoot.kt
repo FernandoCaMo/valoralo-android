@@ -38,12 +38,26 @@ import com.valoralo.ui.home.HomeScreen
 import com.valoralo.ui.review.ReviewScreen
 import com.valoralo.ui.verify.VerificarDocenteScreen
 import com.valoralo.ui.review.ReviewViewModel
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import com.valoralo.ui.compare.CompareScreen
+import com.valoralo.ui.compare.CompareViewModel
+import com.valoralo.ui.components.AccionesCentroViewModel
+import com.valoralo.ui.components.EventoAccion
 import kotlinx.coroutines.launch
 
 @Composable
 fun ValoraloRoot(
     navController: NavHostController = rememberNavController(),
     sesionViewModel: SesionViewModel = hiltViewModel(),
+    acciones: AccionesCentroViewModel = hiltViewModel(),
 ) {
     val snackbar = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
@@ -67,6 +81,21 @@ fun ValoraloRoot(
         }
     }
 
+    // Favourite / compare actions: messages, and login when a favourite needs an account.
+    LaunchedEffect(acciones) {
+        acciones.eventos.collect { evento ->
+            when (evento) {
+                is EventoAccion.Aviso -> avisar(evento.texto)
+                EventoAccion.IniciarSesion -> {
+                    avisar("Inicia sesión para guardar centros en favoritos.")
+                    navController.navigate(Rutas.LOGIN)
+                }
+            }
+        }
+    }
+    val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
+    val enComparador = backStack?.destination?.route == Rutas.COMPARAR
+
     fun volverACuenta() {
         navController.navigate(Rutas.CUENTA) {
             popUpTo(Rutas.CUENTA) { inclusive = false }
@@ -77,6 +106,14 @@ fun ValoraloRoot(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
+          Column {
+            if (seleccion.isNotEmpty() && !enComparador) {
+                BandejaComparador(
+                    n = seleccion.size,
+                    onVer = { navController.navigate(Rutas.comparar(seleccion)) },
+                    onVaciar = acciones::vaciarComparador,
+                )
+            }
             NavigationBar {
                 Pestana.entries.forEach { pestana ->
                     val seleccionada = pestana == pestanaActual
@@ -93,6 +130,7 @@ fun ValoraloRoot(
                     )
                 }
             }
+          }
         },
     ) { padding ->
         NavHost(
@@ -101,16 +139,18 @@ fun ValoraloRoot(
             modifier = Modifier.padding(padding),
         ) {
             composable(Rutas.HOME) {
-                HomeScreen(
-                    onVerCentro = { navController.navigate(Rutas.centro(it)) },
-                    onComparar = { avisar("El comparador llegará pronto.") },
-                )
+                HomeScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones)
             }
             composable(Rutas.SEARCH) {
-                HomeScreen(
+                HomeScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones, enfocarBuscador = true)
+            }
+            composable(
+                Rutas.COMPARAR,
+                arguments = listOf(navArgument(CompareViewModel.ARG_IDS) { type = NavType.StringType; defaultValue = "" }),
+            ) {
+                CompareScreen(
+                    onVolver = { navController.popBackStack() },
                     onVerCentro = { navController.navigate(Rutas.centro(it)) },
-                    onComparar = { avisar("El comparador llegará pronto.") },
-                    enfocarBuscador = true,
                 )
             }
             composable(
@@ -133,6 +173,7 @@ fun ValoraloRoot(
                         navController.navigate(Rutas.LOGIN)
                     },
                     onAviso = ::avisar,
+                    acciones = acciones,
                 )
             }
             composable(
@@ -147,7 +188,13 @@ fun ValoraloRoot(
                     },
                 )
             }
-            composable(Rutas.FAVORITOS) { FavoritesScreen() }
+            composable(Rutas.FAVORITOS) {
+                FavoritesScreen(
+                    acciones = acciones,
+                    onVerCentro = { navController.navigate(Rutas.centro(it)) },
+                    onIniciarSesion = { navController.navigate(Rutas.LOGIN) },
+                )
+            }
             composable(Rutas.CUENTA) {
                 AccountScreen(
                     onIniciarSesion = { navController.navigate(Rutas.LOGIN) },
@@ -191,11 +238,31 @@ fun ValoraloRoot(
     }
 }
 
+/** "Comparar (n)" tray above the bottom bar while centros are selected. */
+@Composable
+private fun BandejaComparador(n: Int, onVer: () -> Unit, onVaciar: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.secondaryContainer, tonalElevation = 2.dp) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                if (n == 1) "1 centro para comparar: elige otro" else "$n centros para comparar",
+                Modifier.weight(1f),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = onVaciar) { Text("Vaciar") }
+            Button(onClick = onVer, enabled = n >= 2) { Text("Comparar") }
+        }
+    }
+}
+
 /** Centro detail belongs to the tab it was opened from; default to Inicio. */
 private fun NavDestination.pestana(): Pestana? =
     Pestana.entries.firstOrNull { it.ruta == route }
         ?: when (route) {
-            Rutas.CENTRO, Rutas.VALORAR -> Pestana.INICIO
+            Rutas.CENTRO, Rutas.VALORAR, Rutas.COMPARAR -> Pestana.INICIO
             Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL, Rutas.VERIFICAR_DOCENTE -> Pestana.CUENTA
             else -> null
         }

@@ -153,6 +153,17 @@ class FirestoreMapperTest {
     }
 
     @Test
+    fun `una valoracion oculta trae el motivo visible para el autor, no la nota interna`() {
+        val v = mapOf<String, Any?>(
+            "rolAutor" to "OTRO", "centro" to mapOf("nota" to 3L), "instalaciones" to mapOf("nota" to 3L), "estado" to "OCULTA",
+            "moderacion" to mapOf("decision" to "OCULTADA", "motivo" to "NOMBRE_PERSONA",
+                "motivoTexto" to "Contiene el nombre de una persona", "nota" to "interna"),
+        ).aValoracion("u1")!!
+        assertEquals(EstadoValoracion.OCULTA, v.estado)
+        assertEquals("Contiene el nombre de una persona", v.motivoModeracion)
+    }
+
+    @Test
     fun `una valoracion mal formada se descarta`() {
         assertNull(mapOf<String, Any?>("rolAutor" to "PIRATA").aValoracion("x"))
         assertNull(mapOf<String, Any?>("rolAutor" to "OTRO").aValoracion("x")) // sin notas

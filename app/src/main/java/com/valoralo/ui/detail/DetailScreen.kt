@@ -71,6 +71,9 @@ import androidx.compose.ui.semantics.Role
 import com.valoralo.data.valoraciones.MotivoDenuncia
 import com.valoralo.domain.model.EstadoValoracion
 import com.valoralo.domain.model.Valoracion
+import androidx.compose.material.icons.automirrored.filled.CompareArrows
+import com.valoralo.ui.components.AccionesCentroViewModel
+import com.valoralo.ui.components.BotonFavorito
 import com.valoralo.ui.components.FUENTE_DATOS
 import com.valoralo.ui.home.ubicacion
 
@@ -80,10 +83,13 @@ fun DetailScreen(
     onAnadirValoracion: (Centro) -> Unit,
     onIniciarSesion: () -> Unit,
     onAviso: (String) -> Unit,
+    acciones: AccionesCentroViewModel,
     viewModel: DetailViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val aviso by viewModel.aviso.collectAsStateWithLifecycle()
+    val favoritos by acciones.favoritos.collectAsStateWithLifecycle()
+    val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
     LaunchedEffect(aviso) {
         aviso?.let { onAviso(it); viewModel.avisoMostrado() }
     }
@@ -91,6 +97,17 @@ fun DetailScreen(
         state, onVolver, onAnadirValoracion, viewModel::onFiltroRolChange,
         onDenunciar = { autor, motivo -> viewModel.denunciar(autor, motivo) },
         onIniciarSesion = onIniciarSesion,
+        accionesBarra = { centro ->
+            BotonFavorito(centro.codigo in favoritos.orEmpty(), centro.nombre) { acciones.alternarFavorito(centro.codigo) }
+            val comparando = centro.codigo in seleccion
+            IconButton(onClick = { acciones.alternarComparar(centro.codigo) }) {
+                Icon(
+                    Icons.AutoMirrored.Filled.CompareArrows,
+                    contentDescription = if (comparando) "Quitar del comparador" else "Añadir al comparador",
+                    tint = if (comparando) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
     )
 }
 
@@ -103,6 +120,7 @@ private fun DetailContent(
     onFiltroRolChange: (FiltroRol) -> Unit,
     onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
     onIniciarSesion: () -> Unit,
+    accionesBarra: @Composable (Centro) -> Unit,
 ) {
     Scaffold(
         topBar = {
@@ -114,6 +132,7 @@ private fun DetailContent(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver")
                     }
                 },
+                actions = { if (state is DetailUiState.Listo) accionesBarra(state.centro) },
             )
         },
         floatingActionButton = {
@@ -179,7 +198,7 @@ private fun DetailLista(
         }
         state.miValoracion?.let { mia ->
             item { Titulo("Tu valoración") }
-            item(key = "mia") { TarjetaResena(mia, etiquetaEstado = mia.estado.etiquetaParaElAutor()) }
+            item(key = "mia") { TarjetaResena(mia, etiquetaEstado = mia.etiquetaParaElAutor()) }
         }
         item { Titulo("Reseñas") }
         if (state.resenas.isEmpty()) {
@@ -366,10 +385,10 @@ private fun FiltroRol.etiqueta(): String = when (this) {
     FiltroRol.OTROS -> "Otros"
 }
 
-private fun EstadoValoracion.etiquetaParaElAutor(): String? = when (this) {
+private fun Valoracion.etiquetaParaElAutor(): String? = when (estado) {
     EstadoValoracion.PUBLICADA -> null
     EstadoValoracion.EN_REVISION -> "En revisión: aún no la ven los demás"
-    EstadoValoracion.OCULTA -> "Oculta por moderación"
+    EstadoValoracion.OCULTA -> "Oculta por moderación" + (motivoModeracion?.let { ": $it" } ?: "")
 }
 
 @Composable

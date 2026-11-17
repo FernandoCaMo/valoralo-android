@@ -10,6 +10,7 @@ import com.valoralo.data.valoraciones.ValoracionRepository
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.model.EstadoValoracion
 import com.valoralo.domain.model.Fragmento
+import com.valoralo.domain.model.OrigenRevision
 import com.valoralo.domain.model.Valoracion
 import com.valoralo.domain.usecase.FormularioValoracion
 import com.valoralo.domain.usecase.OtroDepartamento
@@ -89,8 +90,14 @@ class ReviewViewModel @Inject constructor(
                     ResultadoPublicacion.Publicada -> _estado.update {
                         it.copy(enviando = false, terminado = if (s.existente != null) "Valoración actualizada." else "¡Gracias! Tu valoración está publicada.")
                     }
-                    is ResultadoPublicacion.EnRevision -> _estado.update {
-                        it.copy(enviando = false, formulario = formulario, fragmentos = r.fragmentos, enRevision = true)
+                    is ResultadoPublicacion.EnRevision -> if (r.origen == OrigenRevision.FILTRO) {
+                        // Held by the filter: stay so the author can correct the marked fragments.
+                        _estado.update { it.copy(enviando = false, formulario = formulario, fragmentos = r.fragmentos, enRevision = true) }
+                    } else {
+                        // Hidden by a moderator or reported: only a moderator can publish it again.
+                        _estado.update {
+                            it.copy(enviando = false, terminado = "Cambios guardados. Tu reseña está en revisión: la revisará un moderador antes de publicarla.")
+                        }
                     }
                 }
             } catch (e: ErrorPublicacion) {

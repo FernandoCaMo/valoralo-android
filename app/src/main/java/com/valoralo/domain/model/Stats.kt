@@ -21,6 +21,8 @@ data class Stats(
 @Serializable
 data class StatsGrupo(
     val n: Int = 0,
+    /** Reviews that rate at least one department (the profesorado average uses only these). */
+    val nProfesorado: Int = 0,
     val global: Double? = null,
     val centro: Double? = null,
     val instalaciones: Double? = null,

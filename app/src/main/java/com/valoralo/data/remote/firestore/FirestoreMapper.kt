@@ -123,6 +123,7 @@ fun Map<String, Any?>.aValoracion(id: String): Valoracion? {
         },
         texto = texto("texto"),
         estado = enumONull<EstadoValoracion>(get("estado")) ?: EstadoValoracion.EN_REVISION,
+        motivoModeracion = (get("moderacion") as? Map<*, *>)?.get("motivoTexto") as? String,
         revision = (get("revision") as? Map<*, *>)?.let { r ->
             val origen = enumONull<OrigenRevision>(r["origen"]) ?: return@let null
             Revision(origen, aFragmentos(r["fragmentos"]))
@@ -145,6 +146,7 @@ private fun Map<*, *>.grupo(clave: String): StatsGrupo {
     val g = this[clave] as? Map<*, *> ?: return StatsGrupo()
     return StatsGrupo(
         n = g.entero("n") ?: 0,
+        nProfesorado = g.entero("nProfesorado") ?: 0,
         global = g.decimal("global"),
         centro = g.decimal("centro"),
         instalaciones = g.decimal("instalaciones"),

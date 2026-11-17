@@ -25,6 +25,9 @@ object Rutas {
     const val COMPLETAR_PERFIL = "registro/perfil"
 
     const val VALORAR = "centro/{codigo}/valorar"
+    const val COMPARAR = "compare?ids={ids}"
+
+    fun comparar(codigos: List<String>) = "compare?ids=${codigos.joinToString(",")}"
 
     fun centro(codigo: String) = "centro/$codigo"
     fun valorar(codigo: String) = "centro/$codigo/valorar"

@@ -8,6 +8,7 @@ import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
 import com.valoralo.data.remote.firestore.aFragmentos
 import com.valoralo.data.remote.firestore.aValoracion
+import com.valoralo.domain.model.OrigenRevision
 import com.valoralo.domain.model.Valoracion
 import com.valoralo.domain.usecase.FormularioValoracion
 import kotlinx.coroutines.CancellationException
@@ -52,7 +53,10 @@ class FirebaseValoracionRepository @Inject constructor(
     override suspend fun publicar(codigo: String, formulario: FormularioValoracion): ResultadoPublicacion {
         val datos = llamar("publicarValoracion", formulario.paraEnviar(codigo)) as? Map<*, *>
         return if (datos?.get("estado") == "EN_REVISION") {
-            ResultadoPublicacion.EnRevision(aFragmentos(datos["fragmentos"]))
+            ResultadoPublicacion.EnRevision(
+                aFragmentos(datos["fragmentos"]),
+                OrigenRevision.entries.firstOrNull { it.name == datos["origen"] },
+            )
         } else {
             ResultadoPublicacion.Publicada
         }
