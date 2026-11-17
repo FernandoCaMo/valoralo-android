@@ -29,7 +29,7 @@ data class BuscarUiState(
     val filtro: FiltroCentros = FiltroCentros(),
     val centros: List<Centro> = emptyList(),
     val opciones: OpcionesFiltro = OpcionesFiltro(),
-    /** Provincias deduced from the chosen ciudades when no provincia is chosen. */
+    /** Provincias deduced from the chosen places when no provincia is chosen. */
     val provinciasDeducidas: Set<String> = emptySet(),
 )
 
@@ -40,18 +40,16 @@ class BuscarViewModel @Inject constructor(
 
     private val texto = MutableStateFlow("")
     private val filtro = MutableStateFlow(FiltroCentros())
-    private var todos: List<Centro> = emptyList()
 
     private val catalogo: StateFlow<BuscarUiState> =
         combine(repository.observarCentros(), texto, filtro) { centros, texto, filtro ->
-            todos = centros
             BuscarUiState(
                 cargando = false,
                 texto = texto,
                 filtro = filtro,
                 centros = centros.filtrar(texto, filtro),
                 opciones = opcionesFiltro(centros, filtro),
-                provinciasDeducidas = filtro.provinciasDeducidas(centros),
+                provinciasDeducidas = filtro.provinciasDeducidas(),
             )
         }.catch { emit(BuscarUiState(cargando = false, error = true)) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BuscarUiState())
@@ -62,8 +60,8 @@ class BuscarViewModel @Inject constructor(
 
     fun onTextoChange(nuevo: String) = texto.update { nuevo }
 
-    /** Always keeps ciudades and localidades consistent with what is chosen above them. */
-    fun onFiltroChange(nuevo: FiltroCentros) = filtro.update { nuevo.coherente(todos) }
+    /** Always keeps the places consistent with the chosen provincias. */
+    fun onFiltroChange(nuevo: FiltroCentros) = filtro.update { nuevo.coherente() }
 
     fun limpiarFiltros() = filtro.update { FiltroCentros() }
 }

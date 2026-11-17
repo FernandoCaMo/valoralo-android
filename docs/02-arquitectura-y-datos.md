@@ -97,9 +97,8 @@ config/destacadas   // números de la selección; si falta un campo o no es vál
 
 Pestañas: Inicio (logo, carrusel de destacadas, "Buscar un centro" y, con sesión, 3 favoritos) ·
 Buscar (lista con buscador y filtros) · Favoritos · Mi cuenta.
-Filtros de Buscar, todos de selección múltiple y en secciones plegables: Provincia → Ciudad (municipio)
-→ Localidad → Tipo de centro → Enseñanzas. Ciudad y Localidad solo ofrecen lo que encaja con lo
-elegido arriba y tienen buscador.
+Filtros de Buscar, todos de selección múltiple y en secciones plegables: Provincia → Municipio o
+localidad (un solo buscador que sugiere ambos con su contexto) → Tipo de centro → Enseñanzas.
 
 Caché del catálogo (Room): Buscar lee los centros (con sus notas) de una caché local. En cada arranque
 se lee config/catalogo (1 lectura); el catálogo se vuelve a descargar (los documentos catalogo/*, ~8

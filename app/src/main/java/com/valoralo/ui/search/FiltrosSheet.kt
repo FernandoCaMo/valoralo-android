@@ -44,19 +44,19 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.valoralo.domain.usecase.FiltroCentros
+import com.valoralo.domain.usecase.Lugar
 import com.valoralo.domain.usecase.OpcionesFiltro
 import com.valoralo.domain.usecase.alternar
-import com.valoralo.domain.usecase.buscar
 import com.valoralo.domain.usecase.resumenSeleccion
+import com.valoralo.domain.usecase.sugerir
 import com.valoralo.domain.usecase.textoVerCentros
 
-/** Most chips drawn at once in a searchable section; the search narrows the rest. */
+/** Most places drawn at once; the search narrows the rest. */
 private const val MAX_CHIPS_VISIBLES = 40
 
 private enum class Seccion(val titulo: String) {
     PROVINCIA("Provincia"),
-    CIUDAD("Ciudad"),
-    LOCALIDAD("Localidad"),
+    LUGAR("Municipio o localidad"),
     TIPO("Tipo de centro"),
     ENSENANZAS("Enseñanzas"),
 }
@@ -93,7 +93,7 @@ fun FiltrosSheet(
                     .padding(horizontal = 16.dp, vertical = 8.dp),
             ) {
                 val deducida = if (filtro.provincias.isEmpty() && provinciasDeducidas.isNotEmpty()) {
-                    "${resumenSeleccion(provinciasDeducidas)} (por la ciudad)"
+                    "${resumenSeleccion(provinciasDeducidas)} (por el municipio)"
                 } else null
                 SeccionPlegable(
                     Seccion.PROVINCIA, resumenSeleccion(filtro.provincias) ?: deducida, abierta == Seccion.PROVINCIA,
@@ -102,19 +102,11 @@ fun FiltrosSheet(
                     Chips(opciones.provincias, filtro.provincias) { onFiltroChange(filtro.copy(provincias = filtro.provincias.alternar(it))) }
                 }
                 SeccionPlegable(
-                    Seccion.CIUDAD, resumenSeleccion(filtro.municipios), abierta == Seccion.CIUDAD,
-                    { alternarSeccion(Seccion.CIUDAD) },
+                    Seccion.LUGAR, resumenSeleccion(filtro.lugares.map { it.nombre }.toSet()), abierta == Seccion.LUGAR,
+                    { alternarSeccion(Seccion.LUGAR) },
                 ) {
-                    ChipsConBuscador("Buscar ciudad", opciones.municipios, filtro.municipios) {
-                        onFiltroChange(filtro.copy(municipios = filtro.municipios.alternar(it)))
-                    }
-                }
-                SeccionPlegable(
-                    Seccion.LOCALIDAD, resumenSeleccion(filtro.localidades), abierta == Seccion.LOCALIDAD,
-                    { alternarSeccion(Seccion.LOCALIDAD) },
-                ) {
-                    ChipsConBuscador("Buscar localidad", opciones.localidades, filtro.localidades) {
-                        onFiltroChange(filtro.copy(localidades = filtro.localidades.alternar(it)))
+                    BuscadorLugares(opciones.lugares, filtro.lugares) {
+                        onFiltroChange(filtro.copy(lugares = filtro.lugares.alternar(it)))
                     }
                 }
                 SeccionPlegable(
@@ -207,25 +199,41 @@ private fun Chips(opciones: List<String>, elegidas: Set<String>, onAlternar: (St
     }
 }
 
-/** Long lists (ciudades, localidades): the chosen ones first, then what matches the search. */
+/**
+ * One search box for municipios and localidades together, each with its context
+ * ("Gines · Sevilla", "Aguadulce · Roquetas de Mar, Almería"). The chosen ones first.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ChipsConBuscador(etiqueta: String, opciones: List<String>, elegidas: Set<String>, onAlternar: (String) -> Unit) {
+private fun BuscadorLugares(opciones: List<Lugar>, elegidos: Set<Lugar>, onAlternar: (Lugar) -> Unit) {
     var texto by rememberSaveable { mutableStateOf("") }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedTextField(
             value = texto,
             onValueChange = { texto = it },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(etiqueta) },
+            placeholder = { Text("Escribe tu pueblo o ciudad") },
             leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
             singleLine = true,
         )
-        val coinciden = opciones.buscar(texto).filterNot { it in elegidas }
-        val visibles = elegidas.filter { it in opciones } + coinciden.take(MAX_CHIPS_VISIBLES)
+        val coinciden = opciones.sugerir(texto).filterNot { it in elegidos }
+        val visibles = elegidos.toList() + coinciden.take(MAX_CHIPS_VISIBLES)
         if (visibles.isEmpty()) {
-            Text("No hay ninguna con ese nombre.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("No hay ningún municipio ni localidad con ese nombre.", color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
-            Chips(visibles, elegidas, onAlternar)
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                visibles.forEach { lugar ->
+                    val activo = lugar in elegidos
+                    FilterChip(
+                        selected = activo,
+                        onClick = { onAlternar(lugar) },
+                        label = { Text(lugar.etiqueta) },
+                        leadingIcon = if (activo) {
+                            { Icon(Icons.Filled.Check, contentDescription = null) }
+                        } else null,
+                    )
+                }
+            }
         }
         val ocultas = coinciden.size - MAX_CHIPS_VISIBLES
         if (ocultas > 0) {

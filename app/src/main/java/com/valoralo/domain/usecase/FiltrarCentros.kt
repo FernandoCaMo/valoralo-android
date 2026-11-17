@@ -5,80 +5,122 @@ import com.valoralo.domain.model.PROVINCIAS_ANDALUCIA
 import java.text.Normalizer
 
 /**
+ * A place in the "Municipio o localidad" filter. Nobody knows whether their town is a
+ * municipio or a localidad, so both go in one list, each with its context. A municipio
+ * includes all its localidades; a localidad (e.g. Aguadulce, in Roquetas de Mar) only itself.
+ */
+data class Lugar(
+    val nombre: String,
+    val municipio: String,
+    val provincia: String,
+    val esLocalidad: Boolean,
+) {
+    /** "Gines · Sevilla", "Aguadulce · Roquetas de Mar, Almería". */
+    val etiqueta: String get() = if (esLocalidad) "$nombre · $municipio, $provincia" else "$nombre · $provincia"
+
+    fun contiene(c: Centro): Boolean =
+        c.provincia == provincia && c.municipio == municipio && (!esLocalidad || c.localidadOMunicipio == nombre)
+
+    companion object {
+        fun municipio(nombre: String, provincia: String) = Lugar(nombre, nombre, provincia, esLocalidad = false)
+        fun localidad(nombre: String, municipio: String, provincia: String) = Lugar(nombre, municipio, provincia, esLocalidad = true)
+    }
+}
+
+/**
  * Filters of Buscar, all multiple choice. An empty set means "any".
- * Order of the sections: provincia → ciudad (municipio) → localidad → tipo → enseñanzas.
+ * Order of the sections: provincia → municipio o localidad → tipo → enseñanzas.
  */
 data class FiltroCentros(
     val provincias: Set<String> = emptySet(),
-    val municipios: Set<String> = emptySet(),
-    val localidades: Set<String> = emptySet(),
+    val lugares: Set<Lugar> = emptySet(),
     val tipos: Set<String> = emptySet(),
     /** Nivel de enseñanza: ESO, Bachillerato, FP Grado Medio… */
     val niveles: Set<String> = emptySet(),
 ) {
-    val activos: Int get() = provincias.size + municipios.size + localidades.size + tipos.size + niveles.size
+    val activos: Int get() = provincias.size + lugares.size + tipos.size + niveles.size
     val hayActivos: Boolean get() = activos > 0
 
-    /** Drops the municipios and localidades that no longer fit what is chosen above them. */
-    fun coherente(centros: List<Centro>): FiltroCentros {
-        val enProvincias = centros.filter { provincias.isEmpty() || it.provincia in provincias }
-        val municipiosValidos = municipios.intersect(enProvincias.map { it.municipio }.toSet())
-        val enMunicipios = enProvincias.filter { municipiosValidos.isEmpty() || it.municipio in municipiosValidos }
-        return copy(
-            municipios = municipiosValidos,
-            localidades = localidades.intersect(enMunicipios.map { it.localidadOMunicipio }.toSet()),
-        )
-    }
+    /** Drops the places outside the chosen provincias. */
+    fun coherente(): FiltroCentros =
+        if (provincias.isEmpty()) this else copy(lugares = lugares.filter { it.provincia in provincias }.toSet())
 
-    /** With a ciudad chosen and no provincia, the provincias it belongs to (for the summary). */
-    fun provinciasDeducidas(centros: List<Centro>): Set<String> =
-        if (provincias.isNotEmpty() || municipios.isEmpty()) emptySet()
-        else centros.filter { it.municipio in municipios }.map { it.provincia }.toCollection(LinkedHashSet())
+    /** With places chosen and no provincia, the provincias they are in (for the summary). */
+    fun provinciasDeducidas(): Set<String> =
+        if (provincias.isNotEmpty()) emptySet() else lugares.map { it.provincia }.toCollection(LinkedHashSet())
 }
 
 /** A centro without its own localidad is in its municipio's (e.g. the capital). */
 val Centro.localidadOMunicipio: String get() = localidad.ifBlank { municipio }
 
-/** Search by nombre, localidad or municipio (case- and accent-insensitive) plus the filters. */
+/**
+ * Search by nombre, localidad or municipio (case- and accent-insensitive) plus the filters.
+ * With text, the centros of the municipio or localidad searched come first ("Gines" → the
+ * centros in Gines before "CEIP San Ginés" elsewhere).
+ */
 fun List<Centro>.filtrar(texto: String, filtro: FiltroCentros): List<Centro> {
     val consulta = texto.normalizado()
-    fun Set<String>.admite(valor: String) = isEmpty() || valor in this
-    return filter { centro ->
+    val resultado = filter { centro ->
         (consulta.isEmpty() ||
             centro.nombre.normalizado().contains(consulta) ||
             centro.localidad.normalizado().contains(consulta) ||
             centro.municipio.normalizado().contains(consulta)) &&
-            filtro.provincias.admite(centro.provincia) &&
-            filtro.municipios.admite(centro.municipio) &&
-            filtro.localidades.admite(centro.localidadOMunicipio) &&
-            filtro.tipos.admite(centro.tipo) &&
+            (filtro.provincias.isEmpty() || centro.provincia in filtro.provincias) &&
+            (filtro.lugares.isEmpty() || filtro.lugares.any { it.contiene(centro) }) &&
+            (filtro.tipos.isEmpty() || centro.tipo in filtro.tipos) &&
             (filtro.niveles.isEmpty() || centro.ensenanzas.any { it.nivel in filtro.niveles })
+    }
+    if (consulta.isEmpty()) return resultado
+    // Stable sort: same rank keeps the catalogue order.
+    return resultado.sortedBy { c ->
+        val lugar = c.municipio.normalizado().startsWith(consulta) || c.localidad.normalizado().startsWith(consulta)
+        if (lugar) 0 else 1
     }
 }
 
 data class OpcionesFiltro(
     val provincias: List<String> = PROVINCIAS_ANDALUCIA,
-    /** Municipios of the chosen provincias (all if none). */
-    val municipios: List<String> = emptyList(),
-    /** Localidades of the chosen provincias and municipios. */
-    val localidades: List<String> = emptyList(),
+    /** Municipios and localidades (those different from their municipio) of the chosen provincias. */
+    val lugares: List<Lugar> = emptyList(),
     val tipos: List<String> = emptyList(),
     val niveles: List<String> = emptyList(),
 )
 
 fun opcionesFiltro(centros: List<Centro>, filtro: FiltroCentros): OpcionesFiltro {
     val enProvincias = centros.filter { filtro.provincias.isEmpty() || it.provincia in filtro.provincias }
-    val enMunicipios = enProvincias.filter { filtro.municipios.isEmpty() || it.municipio in filtro.municipios }
+    val enLugares = enProvincias.filter { c -> filtro.lugares.isEmpty() || filtro.lugares.any { it.contiene(c) } }
+    val lugares = enProvincias.flatMap { c ->
+        val municipio = Lugar.municipio(c.municipio, c.provincia)
+        val localidad = c.localidadOMunicipio
+        if (localidad == c.municipio) listOf(municipio) else listOf(municipio, Lugar.localidad(localidad, c.municipio, c.provincia))
+    }.distinct().sortedWith(compareBy<Lugar>({ it.nombre.normalizado() }, { it.esLocalidad }, { it.provincia }))
     return OpcionesFiltro(
-        municipios = enProvincias.map { it.municipio }.distinct().sortedWith(ORDEN_ALFABETICO),
-        localidades = enMunicipios.map { it.localidadOMunicipio }.distinct().sortedWith(ORDEN_ALFABETICO),
-        tipos = enMunicipios.map { it.tipo }.distinct().sorted(),
-        niveles = enMunicipios.flatMap { c -> c.ensenanzas.map { it.nivel } }.distinct()
+        lugares = lugares,
+        tipos = enLugares.map { it.tipo }.distinct().sorted(),
+        niveles = enLugares.flatMap { c -> c.ensenanzas.map { it.nivel } }.distinct()
             .sortedBy { ORDEN_NIVELES.indexOf(it).takeIf { i -> i >= 0 } ?: Int.MAX_VALUE },
     )
 }
 
-fun Set<String>.alternar(opcion: String): Set<String> = if (opcion in this) this - opcion else this + opcion
+/**
+ * Places matching what is typed: name starting with it first, then a word inside the name
+ * starting with it ("mar" → Roquetas de Mar), then any other match. Empty text: all.
+ */
+fun List<Lugar>.sugerir(texto: String): List<Lugar> {
+    val q = texto.normalizado()
+    if (q.isEmpty()) return this
+    return mapNotNull { lugar ->
+        val n = lugar.nombre.normalizado()
+        when {
+            n.startsWith(q) -> 0 to lugar
+            n.split(' ', '-').any { it.startsWith(q) } -> 1 to lugar
+            n.contains(q) -> 2 to lugar
+            else -> null
+        }
+    }.sortedBy { it.first }.map { it.second }
+}
+
+fun <T> Set<T>.alternar(opcion: T): Set<T> = if (opcion in this) this - opcion else this + opcion
 
 /** Summary of a closed section: null if nothing, the value if one, how many otherwise. */
 fun resumenSeleccion(seleccion: Set<String>): String? = when (seleccion.size) {
@@ -87,19 +129,10 @@ fun resumenSeleccion(seleccion: Set<String>): String? = when (seleccion.size) {
     else -> seleccion.size.toString()
 }
 
-/** Options search inside a section (long lists: ciudades, localidades). */
-fun List<String>.buscar(texto: String): List<String> {
-    val q = texto.normalizado()
-    return if (q.isEmpty()) this else filter { it.normalizado().contains(q) }
-}
-
 private val ORDEN_NIVELES = listOf(
     "Infantil", "Primaria", "ESO", "Bachillerato",
     "FP Grado Básico", "FP Grado Medio", "FP Grado Superior",
 )
-
-/** Alphabetical ignoring accents (Écija next to Estepa, not at the end). */
-private val ORDEN_ALFABETICO = compareBy<String> { it.normalizado() }
 
 private val MARCAS_DIACRITICAS = "\\p{Mn}+".toRegex()
 
