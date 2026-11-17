@@ -11,16 +11,36 @@ export const RUTA_CONFIG = "config/destacadas";
 
 const aFecha = (t: unknown) => (t instanceof Timestamp ? t.toDate() : new Date(0));
 
+/** "2026-11-17" in Spain's time zone, to tell today's likes. */
+const DIA_MADRID = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Madrid", year: "numeric", month: "2-digit", day: "2-digit" });
+export const diaEnMadrid = (d: Date) => DIA_MADRID.format(d);
+
 export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n: number; config: ConfigDestacadas }> {
   const config = leerConfig((await db.doc(RUTA_CONFIG).get()).data());
   const desde = new Date(ahora.getTime() - config.maxDias * 86400000);
 
+  const desdeLikes = new Date(ahora.getTime() - config.diasLikes * 86400000);
+
   // `actualizada` is set on creation and on every edit, so it is ≥ fecha.
-  const [publicadas, denuncias] = await Promise.all([
+  const [publicadas, denuncias, likes] = await Promise.all([
     db.collectionGroup("valoraciones").where("estado", "==", "PUBLICADA").where("actualizada", ">=", Timestamp.fromDate(desde)).get(),
     db.collection("denuncias").where("estado", "==", "PENDIENTE").get(),
+    db.collectionGroup("likes").where("fecha", ">=", Timestamp.fromDate(desdeLikes)).get(),
   ]);
   const denunciadas = new Set(denuncias.docs.map((d) => `${d.get("centro")}/${d.get("valoracionUid")}`));
+
+  // Likes in the window and today (Europe/Madrid) per review: centros/{codigo}/valoraciones/{autor}/likes/{uid}.
+  const hoy = diaEnMadrid(ahora);
+  const enVentana = new Map<string, number>();
+  const deHoy = new Map<string, number>();
+  for (const l of likes.docs) {
+    const resena = l.ref.parent.parent;
+    const codigo = resena?.parent.parent?.id;
+    if (!resena || !codigo) continue;
+    const clave = `${codigo}/${resena.id}`;
+    enVentana.set(clave, (enVentana.get(clave) ?? 0) + 1);
+    if (diaEnMadrid(aFecha(l.get("fecha"))) === hoy) deHoy.set(clave, (deHoy.get(clave) ?? 0) + 1);
+  }
 
   const candidatas: Candidata[] = publicadas.docs.flatMap((d) => {
     const v = d.data();
@@ -31,6 +51,9 @@ export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n
       nota: notaDeResena(v as Parameters<typeof notaDeResena>[0]), texto: v.texto,
       fecha: aFecha(v.fecha), actualizada: aFecha(v.actualizada), estado: v.estado,
       denunciasPendientes: denunciadas.has(`${codigo}/${d.id}`),
+      nLikes: typeof v.nLikes === "number" ? v.nLikes : 0,
+      likesVentana: enVentana.get(`${codigo}/${d.id}`) ?? 0,
+      likesHoy: deHoy.get(`${codigo}/${d.id}`) ?? 0,
     }];
   });
   const elegidas = seleccionar(candidatas, config, ahora);
@@ -39,6 +62,8 @@ export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n
   const resenas = elegidas.map((e, i) => ({
     clave: e.clave,
     codigo: e.codigo,
+    autorUid: e.autorUid,
+    nLikes: e.nLikes,
     nombre: centros[i].get("nombre") ?? e.codigo,
     municipio: centros[i].get("municipio") ?? null,
     tipo: centros[i].get("tipo") ?? null,

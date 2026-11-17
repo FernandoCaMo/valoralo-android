@@ -46,7 +46,12 @@ describe("destacadas", () => {
     const mias = (doc.resenas as Record<string, unknown>[]).filter((x) => CENTROS.includes(x.codigo as string));
     expect(mias.map((x) => x.codigo).sort()).toEqual(CENTROS.slice(0, 3));
     expect(mias[0]).toMatchObject({ nombre: "IES Delgado Hernández", rolAutor: "DOCENTE", verificado: true });
-    expect(JSON.stringify(doc)).not.toContain(uids[0]);
+    // Only the review id (author uid, already public as the document id); no email or name.
+    const primera = mias.find((x) => x.codigo === CENTROS[0])!;
+    expect(primera.autorUid).toBe(uids[0]);
+    expect(Object.keys(primera).sort()).toEqual(
+      ["alias", "autorUid", "clave", "codigo", "extracto", "fecha", "municipio", "nLikes", "nombre", "nota", "rolAutor", "tipo", "verificado"],
+    );
 
     // Hidden by a moderator.
     await llamar("moderarValoracion", { codigo: CENTROS[0], uid: uids[0], accion: "OCULTAR", motivo: "OTRO" }, admin);

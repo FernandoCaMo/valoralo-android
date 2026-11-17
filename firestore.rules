@@ -25,7 +25,46 @@ service cloud.firestore {
           || (request.auth != null && request.auth.uid == uid);
         allow delete: if request.auth != null && request.auth.uid == uid;
         allow create, update: if false;
+
+        // Likes: one per user and review (the document id is the user's uid). Written by the
+        // app; the review's nLikes counter only by alCambiarLike. Not on your own review, only
+        // on published ones, and at most config/likes.maxPorHora per hour (default 60).
+        match /likes/{liker} {
+          allow read: if request.auth != null && request.auth.uid == liker;
+          allow delete: if request.auth != null && request.auth.uid == liker;
+          allow update: if false;
+          allow create: if request.auth != null
+            && request.auth.uid == liker
+            && liker != uid
+            && get(/databases/$(database)/documents/centros/$(codigo)/valoraciones/$(uid)).data.estado == "PUBLICADA"
+            && request.resource.data.keys().hasOnly(['uid', 'codigo', 'fecha'])
+            && request.resource.data.keys().hasAll(['uid', 'codigo', 'fecha'])
+            && request.resource.data.uid == liker
+            && request.resource.data.codigo == codigo
+            && request.resource.data.fecha == request.time
+            && limiteSubeEnEsteLote(liker);
+        }
       }
+    }
+
+    // The like must be written together with its user's hourly counter (usuarios/{uid}/limites/likes),
+    // and that counter must stay within the limit. The counter rules allow only +1 in the
+    // current hour, or starting a new hour at 1.
+    function limiteSubeEnEsteLote(uid) {
+      let ruta = /databases/$(database)/documents/usuarios/$(uid)/limites/likes;
+      let despues = getAfter(ruta).data;
+      return despues.n <= maxLikesPorHora()
+        && (!exists(ruta) || despues.n != get(ruta).data.n || despues.inicio != get(ruta).data.inicio);
+    }
+
+    function maxLikesPorHora() {
+      let config = /databases/$(database)/documents/config/likes;
+      return exists(config) ? get(config).data.get('maxPorHora', 60) : 60;
+    }
+
+    // Collection-group query of the app ("my likes in this centro"): only your own.
+    match /{ruta=**}/likes/{liker} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
     }
 
     // Summarised catalogue by provincia, downloaded by the app on first launch.
@@ -89,6 +128,27 @@ service cloud.firestore {
           && request.resource.data.codigo == codigo
           && request.resource.data.fecha == request.time;
         allow update: if false;
+      }
+
+      // Hourly likes counter { inicio, n }: +1 within the hour, or a new hour starting at 1.
+      // It cannot be deleted or reset early (alBorrarUsuario deletes it with the account).
+      match /limites/{limite} {
+        function horaTerminada() {
+          return request.time >= resource.data.inicio + duration.value(1, 'h');
+        }
+        function forma() {
+          return limite == 'likes'
+            && request.resource.data.keys().hasOnly(['inicio', 'n'])
+            && request.resource.data.keys().hasAll(['inicio', 'n']);
+        }
+        allow read: if esPropio();
+        allow create: if esPropio() && forma()
+          && request.resource.data.inicio == request.time && request.resource.data.n == 1;
+        allow update: if esPropio() && forma() && (
+          (horaTerminada() && request.resource.data.inicio == request.time && request.resource.data.n == 1)
+          || (!horaTerminada() && request.resource.data.inicio == resource.data.inicio
+              && request.resource.data.n == resource.data.n + 1));
+        allow delete: if false;
       }
     }
 

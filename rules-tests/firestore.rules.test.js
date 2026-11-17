@@ -1,4 +1,4 @@
-// Tests of firestore.rules. Run from rules-tests/:  npm test
+﻿// Tests of firestore.rules. Run from rules-tests/:  npm test
 // (starts the Firestore emulator, runs the tests and stops it).
 import { after, before, beforeEach, describe, test } from "node:test";
 import { readFileSync } from "node:fs";
@@ -19,6 +19,9 @@ import {
   deleteDoc,
   serverTimestamp,
   where,
+  writeBatch,
+  increment,
+  Timestamp,
 } from "firebase/firestore";
 
 let env;
@@ -321,5 +324,115 @@ describe("todo lo demás está cerrado", () => {
     await assertFails(getDocs(collection(usuario("autorA"), "denuncias")));
     await assertSucceeds(getDocs(query(collection(admin, "denuncias"), where("estado", "==", "PENDIENTE"))));
     await assertFails(updateDoc(doc(admin, "denuncias/21000693_autorA_autorB"), { estado: "RESUELTA" }));
+  });
+});
+
+describe("likes", () => {
+  const RESENA = "centros/21000693/valoraciones/autorA";
+  const like = (db, uid, resena = RESENA, extra = {}) => doc(db, `${resena}/likes/${uid}`);
+  const datosLike = (uid, extra = {}) => ({ uid, codigo: "21000693", fecha: serverTimestamp(), ...extra });
+  const limite = (db, uid) => doc(db, `usuarios/${uid}/limites/likes`);
+
+  /** Like as the app does it: the like and the hourly counter in one batch. */
+  async function darLike(uid, { resena = RESENA, contador = "nuevo", datos } = {}) {
+    const db = usuario(uid);
+    const lote = writeBatch(db);
+    lote.set(like(db, uid, resena), datos ?? datosLike(uid));
+    if (contador === "nuevo") lote.set(limite(db, uid), { inicio: serverTimestamp(), n: 1 });
+    if (contador === "mas1") lote.update(limite(db, uid), { n: increment(1) });
+    return lote.commit();
+  }
+
+  async function sembrarLimite(uid, n, haceMs) {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), `usuarios/${uid}/limites/likes`), {
+        inicio: Timestamp.fromMillis(Date.now() - haceMs), n,
+      });
+    });
+  }
+
+  test("un usuario con cuenta da like a una reseña publicada de otro", async () => {
+    await assertSucceeds(darLike("lector1"));
+    await assertSucceeds(getDoc(like(usuario("lector1"), "lector1")));
+  });
+
+  test("sin sesión no se puede", async () => {
+    await assertFails(setDoc(like(anonimo(), "lector1"), datosLike("lector1")));
+  });
+
+  test("no se puede dar like a la reseña propia", async () => {
+    await assertFails(darLike("autorA"));
+  });
+
+  test("un like por usuario y reseña", async () => {
+    await assertSucceeds(darLike("lector1"));
+    await assertFails(darLike("lector1", { contador: "mas1" }));
+  });
+
+  test("solo en reseñas publicadas", async () => {
+    await assertFails(darLike("lector1", { resena: "centros/21000693/valoraciones/autorB" }));
+  });
+
+  test("no a nombre de otro, sin campos de más y con la hora del servidor", async () => {
+    await assertFails(darLike("lector1", { datos: datosLike("lector2") }));
+    await assertFails(darLike("lector1", { datos: datosLike("lector1", { nLikes: 5 }) }));
+    await assertFails(darLike("lector1", { datos: datosLike("lector1", { codigo: "99999999" }) }));
+    await assertFails(darLike("lector1", { datos: datosLike("lector1", { fecha: Timestamp.fromMillis(0) }) }));
+  });
+
+  test("el like tiene que ir con su contador por hora", async () => {
+    await assertFails(setDoc(like(usuario("lector1"), "lector1"), datosLike("lector1")));
+  });
+
+  test("como mucho 60 por hora; pasada la hora el contador vuelve a empezar", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "centros/21000693/valoraciones/autorC"), { uid: "autorC", estado: "PUBLICADA" });
+    });
+    await sembrarLimite("lector1", 59, 10 * 60 * 1000);
+    await assertSucceeds(darLike("lector1", { contador: "mas1" }));
+    // 61st within the hour: rejected, also restarting the counter early.
+    await assertFails(darLike("lector1", { resena: "centros/21000693/valoraciones/autorC", contador: "mas1" }));
+    await assertFails(darLike("lector1", { resena: "centros/21000693/valoraciones/autorC", contador: "nuevo" }));
+    // An hour later it starts again at 1.
+    await sembrarLimite("lector1", 60, 61 * 60 * 1000);
+    await assertSucceeds(darLike("lector1", { resena: "centros/21000693/valoraciones/autorC", contador: "nuevo" }));
+  });
+
+  test("el límite se lee de config/likes", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "config/likes"), { maxPorHora: 1 });
+    });
+    await sembrarLimite("lector1", 1, 60 * 1000);
+    await assertFails(darLike("lector1", { contador: "mas1" }));
+  });
+
+  test("el contador no se puede borrar ni reiniciar antes de tiempo", async () => {
+    await sembrarLimite("lector1", 30, 60 * 1000);
+    await assertFails(deleteDoc(limite(usuario("lector1"), "lector1")));
+    await assertFails(setDoc(limite(usuario("lector1"), "lector1"), { inicio: serverTimestamp(), n: 1 }));
+    await assertFails(getDoc(limite(usuario("lector2"), "lector1")));
+  });
+
+  test("el contador nLikes de la reseña está protegido", async () => {
+    await assertFails(updateDoc(doc(usuario("lector1"), RESENA), { nLikes: 100 }));
+    await assertFails(updateDoc(doc(usuario("autorA"), RESENA), { nLikes: 100 }));
+  });
+
+  test("solo el dueño quita o lee su like, también si la reseña ya no está publicada", async () => {
+    await assertSucceeds(darLike("lector1"));
+    await assertFails(deleteDoc(like(usuario("lector2"), "lector1")));
+    await assertFails(getDoc(like(usuario("lector2"), "lector1")));
+    await assertFails(getDoc(like(usuario("autorA"), "lector1")));
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await updateDoc(doc(ctx.firestore(), RESENA), { estado: "OCULTA" });
+    });
+    await assertSucceeds(deleteDoc(like(usuario("lector1"), "lector1")));
+  });
+
+  test("consulta de mis likes en un centro: solo los propios", async () => {
+    await assertSucceeds(darLike("lector1"));
+    const db = usuario("lector1");
+    await assertSucceeds(getDocs(query(collectionGroup(db, "likes"), where("uid", "==", "lector1"), where("codigo", "==", "21000693"))));
+    await assertFails(getDocs(query(collectionGroup(db, "likes"), where("codigo", "==", "21000693"))));
   });
 });

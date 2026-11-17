@@ -10,6 +10,7 @@ const c = (cambios: Partial<Candidata> = {}): Candidata => {
   return {
     codigo: `2100${String(id).padStart(4, "0")}`, uid: `u${id}`, alias: "Ana", rolAutor: "ESTUDIANTE", verificado: false,
     nota: 4, texto: texto(), fecha: hace(10), actualizada: hace(10), estado: "PUBLICADA", denunciasPendientes: false,
+    nLikes: 0, likesVentana: 0, likesHoy: 0,
     ...cambios,
   };
 };
@@ -18,6 +19,13 @@ describe("configuración", () => {
   test("valores por defecto si no existe", () => {
     expect(leerConfig(undefined)).toEqual(CONFIG_POR_DEFECTO);
     expect(CONFIG_POR_DEFECTO).toMatchObject({ minCaracteres: 120, maxDias: 180, maxResenas: 12, maxFraccionAltas: 1 / 3, minimoParaMostrar: 3 });
+    expect(CONFIG_POR_DEFECTO).toMatchObject({ diasLikes: 7, huecosNuevas: 3, diasNueva: 3, maxLikesNueva: 2 });
+  });
+
+  test("lee también los números de likes y reseñas nuevas", () => {
+    expect(leerConfig({ diasLikes: 14, huecosNuevas: 0, diasNueva: 1, maxLikesNueva: 5 }))
+      .toMatchObject({ diasLikes: 14, huecosNuevas: 0, diasNueva: 1, maxLikesNueva: 5 });
+    expect(leerConfig({ diasLikes: 0, huecosNuevas: 99 })).toMatchObject({ diasLikes: 7, huecosNuevas: 3 });
   });
 
   test("usa los valores válidos y descarta los que no lo son", () => {
@@ -87,12 +95,47 @@ describe("seleccionar", () => {
     expect(r.filter((x) => x.nota >= 4.5).length).toBeLessThanOrEqual(Math.max(1, Math.floor(r.length / 3)));
   });
 
-  test("el resultado no expone el uid del autor", () => {
-    const [r] = seleccionar([c()], cfg, ahora);
-    expect(r).not.toHaveProperty("uid");
+  test("guarda el identificador de la reseña (uid del autor) para poder dar like, y sus likes", () => {
+    const [r] = seleccionar([c({ uid: "autor1", nLikes: 7 })], cfg, ahora);
     expect(r.clave).toMatch(/^[0-9a-f]{24}$/);
-    expect(JSON.stringify(r)).not.toContain(`"u${id}"`);
-    expect(r).toMatchObject({ alias: "Ana", rolAutor: "ESTUDIANTE", verificado: false });
+    expect(r).toMatchObject({ autorUid: "autor1", nLikes: 7, alias: "Ana", rolAutor: "ESTUDIANTE", verificado: false });
     expect(r.extracto.length).toBeLessThanOrEqual(201);
+  });
+
+  describe("likes", () => {
+    test("primero las que tienen más likes en la ventana; si empatan, más likes hoy; luego la más reciente", () => {
+      const pocas = c({ likesVentana: 1, actualizada: hace(1) });
+      const muchas = c({ likesVentana: 9, actualizada: hace(30) });
+      const empateAyer = c({ likesVentana: 5, likesHoy: 0, actualizada: hace(2) });
+      const empateHoy = c({ likesVentana: 5, likesHoy: 3, actualizada: hace(20) });
+      const r = seleccionar([pocas, muchas, empateAyer, empateHoy], { ...cfg, huecosNuevas: 0 }, ahora);
+      expect(r.map((x) => x.codigo)).toEqual([muchas, empateHoy, empateAyer, pocas].map((x) => x.codigo));
+    });
+
+    test("3 huecos para reseñas nuevas (3 días, 2 likes o menos), en las posiciones 3, 6 y 9", () => {
+      const populares = Array.from({ length: 15 }, (_, i) => c({ likesVentana: 50 - i, nota: 3, actualizada: hace(20) }));
+      const nuevas = Array.from({ length: 5 }, (_, i) => c({ fecha: hace(i * 0.5), actualizada: hace(i * 0.5), nota: 3, likesVentana: i % 3 }));
+      const r = seleccionar([...populares, ...nuevas], cfg, ahora);
+      expect(r).toHaveLength(12);
+      const esNueva = (x: { codigo: string }) => nuevas.some((n) => n.codigo === x.codigo);
+      expect(r.map((x, i) => (esNueva(x) ? i : -1)).filter((i) => i >= 0)).toEqual([2, 5, 8]);
+      // The most recent new ones.
+      expect(r.filter(esNueva).map((x) => x.codigo)).toEqual(nuevas.slice(0, 3).map((x) => x.codigo));
+      // Populars in order around them.
+      expect(r.filter((x) => !esNueva(x)).map((x) => x.codigo)).toEqual(populares.slice(0, 9).map((x) => x.codigo));
+    });
+
+    test("no es nueva con más de 2 likes o más de 3 días; sin nuevas, los huecos son para populares", () => {
+      const vieja = c({ fecha: hace(4), actualizada: hace(4), likesVentana: 0 });
+      const conLikes = c({ fecha: hace(1), actualizada: hace(1), likesVentana: 3 });
+      const populares = Array.from({ length: 12 }, (_, i) => c({ likesVentana: 40 - i, nota: 3, actualizada: hace(20) }));
+      const r = seleccionar([vieja, conLikes, ...populares], cfg, ahora);
+      expect(r.map((x) => x.codigo)).toEqual(populares.map((x) => x.codigo));
+    });
+
+    test("una oculta no cuenta aunque tenga muchos likes", () => {
+      const oculta = c({ estado: "OCULTA", likesVentana: 99 });
+      expect(seleccionar([oculta, c()], cfg, ahora).map((x) => x.codigo)).not.toContain(oculta.codigo);
+    });
   });
 });

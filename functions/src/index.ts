@@ -10,7 +10,8 @@
  *  resolverVerificacion   callable, administrators only: approve or reject.
  *  caducarVerificaciones  daily (europe-west1): pending requests older than 30 days expire.
  *  moderarValoracion      callable, administrators only: approve, hide or dismiss reports.
- *  calcularDestacadas     daily (europe-west1): featured reviews for Inicio (destacadas/actual).
+ *  alCambiarLike          trigger: keeps the review's nLikes counter (the app writes the likes).
+ *  calcularDestacadas     hourly (europe-west1): featured reviews for Inicio (destacadas/actual).
  *  recalcularDestacadas   callable, administrators only: same, on demand from the panel.
  */
 import { initializeApp } from "firebase-admin/app";
@@ -100,6 +101,8 @@ export const publicarValoracion = onCall(async (request) => {
       ...valoracion,
       fecha: Timestamp.fromDate(valoracion.fecha),
       actualizada: Timestamp.fromDate(valoracion.actualizada),
+      // Editing must not lose the likes (the counter is written only by alCambiarLike).
+      nLikes: previaSnap.exists ? previaSnap.get("nLikes") ?? 0 : 0,
     });
     return {
       estado: valoracion.estado,
@@ -241,6 +244,10 @@ async function parteDelCatalogo(codigo: string, catalogoDoc: unknown, provincia:
 export const alEscribirValoracion = onDocumentWritten("centros/{codigo}/valoraciones/{uid}", async (event) => {
   const antes = event.data?.before.data();
   const despues = event.data?.after.data();
+  // A deleted review takes its likes with it (subcollections are not deleted with their parent).
+  if (antes && !despues) {
+    await db().recursiveDelete(db().collection(`centros/${event.params.codigo}/valoraciones/${event.params.uid}/likes`));
+  }
   // A featured review that is hidden, edited or deleted leaves Inicio at once.
   const contenido = (d?: FirebaseFirestore.DocumentData) => d && JSON.stringify([d.estado, d.texto, d.centro, d.instalaciones, d.profesorado]);
   if (antes?.estado === "PUBLICADA" && contenido(antes) !== contenido(despues)) {
@@ -256,9 +263,26 @@ export const alEscribirValoracion = onDocumentWritten("centros/{codigo}/valoraci
 
 // ---------- Reseñas destacadas (Inicio) ----------
 
-/** Daily, after caducarVerificaciones. Numbers in config/destacadas (defaults if missing). */
+// ---------- Likes ----------
+
+/**
+ * The app writes and deletes likes directly (the rules check them). This keeps the review's
+ * nLikes counter: it recounts instead of adding 1, so a repeated event cannot skew it, and
+ * does it in a transaction so two likes at once cannot leave a stale count.
+ */
+export const alCambiarLike = onDocumentWritten("centros/{codigo}/valoraciones/{autorUid}/likes/{uid}", async (event) => {
+  const resena = db().doc(`centros/${event.params.codigo}/valoraciones/${event.params.autorUid}`);
+  await db().runTransaction(async (tx) => {
+    const r = await tx.get(resena);
+    if (!r.exists) return;
+    const n = (await tx.get(resena.collection("likes").count())).data().count;
+    if (r.get("nLikes") !== n) tx.update(resena, { nLikes: n });
+  });
+});
+
+/** Every hour. Numbers in config/destacadas (defaults if missing). */
 export const calcularDestacadas = onSchedule({
-  schedule: "every day 05:00",
+  schedule: "0 * * * *",
   timeZone: "Europe/Madrid",
   region: "europe-west1",
 }, async () => {
@@ -323,11 +347,15 @@ export const alBorrarUsuario = onDocumentDeleted("usuarios/{uid}", async (event)
   const uid = event.params.uid;
   const valoraciones = await db().collectionGroup("valoraciones").where("uid", "==", uid).get();
   const denuncias = await db().collection("denuncias").where("denuncianteUid", "==", uid).get();
+  // Likes given: deleting each one recounts its review (alCambiarLike), so they are discounted.
+  const likes = await db().collectionGroup("likes").where("uid", "==", uid).get();
   const lote = db().bulkWriter();
   valoraciones.docs.forEach((d) => lote.delete(d.ref));
   denuncias.docs.forEach((d) => lote.delete(d.ref));
+  likes.docs.forEach((d) => lote.delete(d.ref));
   await lote.close();
   // Subcollections are not deleted with their parent document.
   await db().recursiveDelete(db().collection(`usuarios/${uid}/favoritos`));
-  logger.info("Cuenta eliminada: datos borrados", { uid, valoraciones: valoraciones.size, denuncias: denuncias.size });
+  await db().recursiveDelete(db().collection(`usuarios/${uid}/limites`));
+  logger.info("Cuenta eliminada: datos borrados", { uid, valoraciones: valoraciones.size, denuncias: denuncias.size, likes: likes.size });
 });
