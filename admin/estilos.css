@@ -36,4 +36,12 @@ code { font-size: 1rem; }
 label { display: flex; flex-direction: column; gap: 4px; color: var(--suave); font-size: .9rem; }
 label.ancho { flex: 1 1 260px; }
 input, textarea { font: inherit; padding: 8px; border: 1px solid var(--borde); border-radius: 8px; background: var(--fondo); color: var(--texto); }
+.pestanas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--borde); padding-bottom: 12px; margin-bottom: 8px; }
+.pestanas [role="tab"] { background: transparent; color: var(--texto); border-color: var(--borde); }
+.pestanas [role="tab"][aria-selected="true"] { background: var(--primario); color: var(--sobre-primario); border-color: var(--primario); }
+.pestanas #recargar { margin-left: auto; }
+.texto { white-space: pre-wrap; background: var(--fondo); border: 1px solid var(--borde); border-radius: 8px; padding: 8px 12px; }
+mark { background: #ffd8d3; color: #410002; border-radius: 3px; padding: 0 2px; }
+.otros-marcados:empty { display: none; }
+select { font: inherit; padding: 8px; border: 1px solid var(--borde); border-radius: 8px; background: var(--fondo); color: var(--texto); }
 @media (max-width: 560px) { dl { grid-template-columns: 1fr; } dt { margin-top: 6px; } }

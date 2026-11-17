@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="robots" content="noindex, nofollow">
-  <title>Valoralo · Verificaciones</title>
+  <title>Valoralo · Administración</title>
   <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
   <header>
-    <h1>Valoralo · Verificación de docentes</h1>
+    <h1>Valoralo · Administración</h1>
     <div id="usuario" hidden>
       <span id="correo"></span>
       <button id="salir" type="button" class="secundario">Cerrar sesión</button>
@@ -30,16 +30,33 @@
     </section>
 
     <section id="panel" hidden>
-      <div class="barra">
-        <h2>Solicitudes pendientes <span id="total"></span></h2>
+      <nav class="pestanas" role="tablist">
+        <button type="button" role="tab" data-pestana="verificaciones" aria-selected="true">Verificaciones <span class="cuenta" id="n-verificaciones"></span></button>
+        <button type="button" role="tab" data-pestana="revision" aria-selected="false">Reseñas en revisión <span class="cuenta" id="n-revision"></span></button>
+        <button type="button" role="tab" data-pestana="denuncias" aria-selected="false">Denuncias <span class="cuenta" id="n-denuncias"></span></button>
         <button id="recargar" type="button" class="secundario">Actualizar</button>
+      </nav>
+
+      <div id="pestana-verificaciones" role="tabpanel">
+        <p class="nota">
+          Comprueba cada documento en la <a id="enlace-junta" target="_blank" rel="noopener noreferrer">web de verificación de la Junta</a>.
+          Al resolver, se borran el nombre, el CSV y el PDF; solo queda la huella del CSV.
+        </p>
+        <p class="vacio" hidden>No hay solicitudes pendientes.</p>
+        <div class="lista"></div>
       </div>
-      <p class="nota">
-        Comprueba cada documento en la <a id="enlace-junta" target="_blank" rel="noopener noreferrer">web de verificación de la Junta</a>.
-        Al resolver, se borran el nombre, el CSV y el PDF; solo queda la huella del CSV.
-      </p>
-      <p id="vacio" hidden>No hay solicitudes pendientes.</p>
-      <div id="lista"></div>
+
+      <div id="pestana-revision" role="tabpanel" hidden>
+        <p class="nota">Reseñas que no ve nadie más que su autor hasta que las apruebes. Al ocultar, el autor ve el motivo; la nota interna no.</p>
+        <p class="vacio" hidden>No hay reseñas en revisión.</p>
+        <div class="lista"></div>
+      </div>
+
+      <div id="pestana-denuncias" role="tabpanel" hidden>
+        <p class="nota">Reseñas publicadas con denuncias pendientes (con 3 pasan solas a revisión). Si están bien, descarta las denuncias.</p>
+        <p class="vacio" hidden>No hay denuncias pendientes.</p>
+        <div class="lista"></div>
+      </div>
     </section>
 
     <p id="error" class="error" role="alert" hidden></p>
@@ -68,6 +85,35 @@
         <label class="ancho">Motivo del rechazo (lo verá el usuario)
           <textarea class="motivo" maxlength="300" rows="2"></textarea></label>
         <button type="button" class="rechazar peligro">Rechazar</button>
+      </div>
+      <p class="error resultado" hidden></p>
+    </article>
+  </template>
+
+  <template id="plantilla-resena">
+    <article class="solicitud">
+      <div class="cabecera">
+        <h3 class="centro-nombre"></h3>
+        <span class="antiguedad"></span>
+      </div>
+      <dl>
+        <dt>Autor</dt><dd class="autor"></dd>
+        <dt>Motivo</dt><dd class="origen"></dd>
+        <dt>Notas</dt><dd class="notas"></dd>
+        <dt>Denuncias</dt><dd class="denuncias"></dd>
+      </dl>
+      <p class="texto"></p>
+      <p class="otros-marcados"></p>
+      <div class="acciones">
+        <label class="ancho">Nota interna (opcional, no la ve el autor)
+          <input class="nota-interna" maxlength="500"></label>
+      </div>
+      <div class="acciones">
+        <button type="button" class="aprobar">Aprobar</button>
+        <button type="button" class="descartar secundario">Descartar denuncias</button>
+        <label>Motivo para ocultar (lo verá el autor)
+          <select class="motivo-ocultar"><option value="">Elige un motivo…</option></select></label>
+        <button type="button" class="ocultar peligro">Ocultar</button>
       </div>
       <p class="error resultado" hidden></p>
     </article>

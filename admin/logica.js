@@ -33,6 +33,67 @@ export function validarCentro(codigo) {
   return c === "" || /^\d{8}$/.test(c) ? null : "El código del centro tiene 8 cifras (o déjalo vacío).";
 }
 
+// ---------- Moderation of reviews (Fase 6) ----------
+
+/** Same fixed reasons as functions/src/moderacion.ts (checked against the shared cases). */
+export const MOTIVOS_OCULTAR = {
+  NOMBRE_PERSONA: "Contiene el nombre de una persona",
+  INSULTOS: "Insultos o lenguaje ofensivo",
+  DATOS_PERSONALES: "Datos personales",
+  NO_TRATA_DEL_CENTRO: "No trata sobre el centro",
+  OTRO: "Otro",
+};
+
+export const ORIGEN_REVISION = {
+  FILTRO: "Retenida por el filtro automático",
+  DENUNCIAS: "Tres o más denuncias",
+  MODERACION: "Editada después de que un moderador la ocultara",
+};
+
+export const MOTIVO_DENUNCIA = {
+  INSULTOS: "Insultos o faltas de respeto",
+  NOMBRE_PROPIO: "Nombra a una persona",
+  DATOS_PERSONALES: "Datos personales",
+  FALSA_O_SPAM: "Falsa o spam",
+  OTRO: "Otro motivo",
+};
+
+/**
+ * Splits a text into plain and marked pieces from the filter fragments ({inicio, fin}),
+ * so the panel can highlight them with DOM nodes (never innerHTML). Fragments outside
+ * the text (e.g. in "Otro departamento", inicio = -1) are ignored here.
+ */
+export function segmentos(texto, fragmentos) {
+  const validos = (fragmentos ?? [])
+    .filter((f) => Number.isInteger(f.inicio) && f.inicio >= 0 && f.fin > f.inicio && f.fin <= texto.length)
+    .sort((a, b) => a.inicio - b.inicio);
+  const salida = [];
+  let i = 0;
+  for (const f of validos) {
+    if (f.inicio < i) continue;
+    if (f.inicio > i) salida.push({ texto: texto.slice(i, f.inicio), marcado: false });
+    salida.push({ texto: texto.slice(f.inicio, f.fin), marcado: true, motivo: f.motivo });
+    i = f.fin;
+  }
+  if (i < texto.length) salida.push({ texto: texto.slice(i), marcado: false });
+  return salida;
+}
+
+/** Pending reports grouped by review: [{ centro, uid, n, motivos: {MOTIVO: count} }], most reported first. */
+export function agruparDenuncias(denuncias) {
+  const grupos = new Map();
+  for (const d of denuncias) {
+    const clave = `${d.centro}/${d.valoracionUid}`;
+    const g = grupos.get(clave) ?? { centro: d.centro, uid: d.valoracionUid, n: 0, motivos: {} };
+    g.n += 1;
+    g.motivos[d.motivo] = (g.motivos[d.motivo] ?? 0) + 1;
+    grupos.set(clave, g);
+  }
+  return [...grupos.values()].sort((a, b) => b.n - a.n);
+}
+
+export const validarNota = (nota) => ((nota ?? "").trim().length > 500 ? "La nota interna puede tener como máximo 500 caracteres." : null);
+
 /** What the reviewer must check (doc 04). */
 export function comprobaciones(fechaAlta) {
   return [
