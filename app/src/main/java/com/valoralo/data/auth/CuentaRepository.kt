@@ -30,6 +30,9 @@ interface CuentaRepository {
 
     suspend fun cambiarAlias(alias: String)
 
+    /** Accounts from before the terms of use (or after a new version): accept the ones in force. */
+    suspend fun aceptarCondiciones()
+
     /** Only between ESTUDIANTE and OTRO; reviews already written keep their rolAutor. */
     suspend fun cambiarRol(rol: Rol)
     suspend fun recuperarContrasena(correo: String)

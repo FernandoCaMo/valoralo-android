@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.valoralo.domain.model.Rol
+import com.valoralo.ui.components.URL_CONDICIONES
 import com.valoralo.ui.components.URL_PRIVACIDAD
 import java.time.Instant
 import java.time.LocalDate
@@ -136,9 +137,12 @@ fun RegistroScreen(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Checkbox(checked = s.aceptaPrivacidad, onCheckedChange = null)
-                Text("He leído y acepto la política de privacidad", Modifier.padding(start = 8.dp))
+                Text("He leído y acepto las condiciones de uso y la política de privacidad", Modifier.padding(start = 8.dp))
             }
-            TextButton(onClick = { runCatching { uriHandler.openUri(URL_PRIVACIDAD) } }) { Text("Leer la política de privacidad") }
+            Row {
+                TextButton(onClick = { runCatching { uriHandler.openUri(URL_CONDICIONES) } }) { Text("Condiciones de uso") }
+                TextButton(onClick = { runCatching { uriHandler.openUri(URL_PRIVACIDAD) } }) { Text("Política de privacidad") }
+            }
             s.errores[CampoRegistro.PRIVACIDAD]?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
             s.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }

@@ -49,6 +49,11 @@ import androidx.compose.material3.Button
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import com.valoralo.ui.compare.CompareScreen
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.window.DialogProperties
+import com.valoralo.ui.components.URL_CONDICIONES
 import com.valoralo.ui.compare.CompareViewModel
 import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.EventoAccion
@@ -96,6 +101,17 @@ fun ValoraloRoot(
     }
     val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
     val enComparador = backStack?.destination?.route == Rutas.COMPARAR
+
+    // Accounts from before the terms of use (or a new version): accept them once to keep using the account.
+    val perfilActual = (sesion as? Sesion.Iniciada)?.perfil
+    if (perfilActual != null && !perfilActual.aceptoCondicionesVigentes) {
+        val errorCondiciones by sesionViewModel.errorCondiciones.collectAsStateWithLifecycle()
+        AceptarCondiciones(
+            error = errorCondiciones,
+            onAceptar = sesionViewModel::aceptarCondiciones,
+            onCerrarSesion = sesionViewModel::cerrarSesion,
+        )
+    }
 
     fun volverACuenta() {
         navController.navigate(Rutas.CUENTA) {
@@ -247,6 +263,29 @@ fun ValoraloRoot(
             }
         }
     }
+}
+
+/** One-off acceptance of the terms of use; it can't be dismissed without accepting or signing out. */
+@Composable
+private fun AceptarCondiciones(error: String?, onAceptar: () -> Unit, onCerrarSesion: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    AlertDialog(
+        onDismissRequest = {},
+        title = { Text("Condiciones de uso") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    "Hemos publicado las condiciones de uso de Valoralo: qué se puede publicar, cómo moderamos " +
+                        "y cómo denunciar o bloquear. Para seguir usando tu cuenta, léelas y acéptalas.",
+                )
+                TextButton(onClick = { runCatching { uriHandler.openUri(URL_CONDICIONES) } }) { Text("Leer las condiciones de uso") }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = { Button(onClick = onAceptar) { Text("Las acepto") } },
+        dismissButton = { TextButton(onClick = onCerrarSesion) { Text("Cerrar sesión") } },
+        properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+    )
 }
 
 /** "Comparar (n)" tray above the bottom bar while centros are selected. */

@@ -2,6 +2,7 @@ package com.valoralo.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.valoralo.data.bloqueos.BloqueosRepository
 import com.valoralo.data.destacadas.DestacadasRepository
 import com.valoralo.data.likes.ClaveResena
 import com.valoralo.data.likes.LikesRepository
@@ -34,11 +35,16 @@ class InicioViewModel @Inject constructor(
     private val destacadasRepo: DestacadasRepository,
     centros: CentroRepository,
     private val likesRepo: LikesRepository,
+    bloqueos: BloqueosRepository,
 ) : ViewModel() {
 
     /** null while loading. One read of destacadas/actual per visit to Inicio. */
     private val _destacadas = MutableStateFlow<Destacadas?>(null)
-    val destacadas: StateFlow<Destacadas?> = _destacadas.asStateFlow()
+
+    /** Without the reviews of authors this user has blocked. */
+    val destacadas: StateFlow<Destacadas?> = combine(_destacadas, bloqueos.bloqueados) { d, bloqueados ->
+        d?.copy(resenas = d.resenas.filterNot { it.autorUid != null && it.autorUid in bloqueados })
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val likes = ControlLikes(viewModelScope, likesRepo)
 

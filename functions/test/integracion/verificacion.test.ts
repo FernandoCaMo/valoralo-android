@@ -129,6 +129,28 @@ describe("resolverVerificacion", () => {
   });
 });
 
+describe("eliminar cuenta con verificación", () => {
+  test("se borran la solicitud, sus datos privados y el PDF; la huella del CSV queda sin uid", async () => {
+    const u = await crearUsuario("OTRO");
+    // A rejected document (its hash stays in csvUsados) and then a pending request with a PDF.
+    const rechazado = csvNuevo();
+    await llamar("solicitarVerificacion", solicitud(rechazado), u);
+    await llamar("resolverVerificacion", { uid: u.uid, decision: "RECHAZAR", motivo: "Documento ilegible." }, admin);
+    expect((await db.doc(`csvUsados/${hashCsv(rechazado)}`).get()).get("uid")).toBe(u.uid);
+    const pdf = `verificaciones/${u.uid}/hoja.pdf`;
+    await bucket().file(pdf).save(Buffer.from("%PDF-1.4"), { contentType: "application/pdf" });
+    expect((await llamar("solicitarVerificacion", solicitud(csvNuevo(), { pdfPath: pdf }), u)).result).toEqual({ estado: "PENDIENTE" });
+
+    await db.doc(`usuarios/${u.uid}`).delete();
+
+    await esperar(() => verificacion(u.uid), (v) => v === undefined);
+    expect((await privado(u.uid)).exists).toBe(false);
+    await esperar(async () => (await bucket().file(pdf).exists())[0], (e) => e === false);
+    const huella = await esperar(async () => (await db.doc(`csvUsados/${hashCsv(rechazado)}`).get()).data(), (d) => d !== undefined && !("uid" in d));
+    expect(huella).toMatchObject({ resultado: "RECHAZADA" });
+  });
+});
+
 describe("caducarVerificaciones", () => {
   test("las pendientes de más de 30 días caducan y se borran sus datos y su PDF", async () => {
     const u = await crearUsuario();

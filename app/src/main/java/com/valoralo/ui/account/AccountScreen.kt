@@ -57,6 +57,10 @@ import com.valoralo.domain.model.Rol
 import com.valoralo.domain.model.Sesion
 import com.valoralo.domain.model.Usuario
 import com.valoralo.ui.components.URL_PRIVACIDAD
+import com.valoralo.ui.components.URL_CONDICIONES
+import androidx.compose.material.icons.outlined.Block
+import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.foundation.layout.Row
 
 @Composable
 fun AccountScreen(
@@ -87,6 +91,7 @@ fun AccountScreen(
         }
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
+        Opcion(Icons.Outlined.Gavel, "Condiciones de uso") { runCatching { uriHandler.openUri(URL_CONDICIONES) } }
         Opcion(Icons.Outlined.Policy, "Política de privacidad", onClick = abrirPrivacidad)
         Opcion(Icons.Outlined.Info, "Acerca de", "Versión, fuente de los datos y licencia", onClick = onAcercaDe)
         if (sesion is Sesion.Iniciada) {
@@ -148,11 +153,43 @@ private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCue
     if (!(perfil.rol == Rol.DOCENTE && perfil.verificado)) {
         Opcion(Icons.Outlined.School, "Soy docente", "Verifícate con la hoja de servicios del Portal del docente", onClick = onVerificar)
     }
-    Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borran tu perfil y tu acceso", flecha = false, peligro = true) { eliminar = true }
+    val bloqueadosVm: BloqueadosViewModel = hiltViewModel()
+    val bloqueados by bloqueadosVm.bloqueados.collectAsStateWithLifecycle()
+    var verBloqueados by rememberSaveable { mutableStateOf(false) }
+    Opcion(
+        Icons.Outlined.Block,
+        "Autores bloqueados",
+        when (bloqueados.size) { 0 -> "Ninguno"; 1 -> "1 autor"; else -> "${bloqueados.size} autores" },
+    ) { verBloqueados = true }
+    Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borran tu perfil, tus reseñas y tus likes", flecha = false, peligro = true) { eliminar = true }
 
+    if (verBloqueados) DialogoBloqueados(bloqueados, bloqueadosVm::desbloquear) { verBloqueados = false }
     if (editarAlias) DialogoAlias(perfil.alias, viewModel) { editarAlias = false }
     if (cambiarRol) DialogoRol(perfil.rol, viewModel) { cambiarRol = false }
     if (eliminar) DialogoEliminar(sesion.conGoogle, viewModel) { eliminar = false }
+}
+
+@Composable
+private fun DialogoBloqueados(bloqueados: Map<String, String>, onDesbloquear: (String) -> Unit, onCerrar: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text("Autores bloqueados") },
+        text = {
+            if (bloqueados.isEmpty()) {
+                Text("No has bloqueado a nadie. Desde una reseña puedes bloquear a su autor para dejar de ver sus reseñas.")
+            } else {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    bloqueados.entries.sortedBy { it.value.lowercase() }.forEach { (uid, alias) ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(alias.ifBlank { "Autor sin alias" }, Modifier.weight(1f))
+                            TextButton(onClick = { onDesbloquear(uid) }) { Text("Desbloquear") }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onCerrar) { Text("Cerrar") } },
+    )
 }
 
 @Composable

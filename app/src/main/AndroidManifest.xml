@@ -1,19 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Added by libraries but not used: no passkeys/biometrics (Credential Manager) and no push
+         notifications (Functions pulls in FCM). Keep the list in docs/decisiones.md up to date. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove" />
+    <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove" />
+    <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" tools:node="remove" />
 
     <application
         android:name=".ValoraloApp"
         android:allowBackup="false"
+        android:dataExtractionRules="@xml/reglas_copia_datos"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.Valoralo">
+
+        <!-- Crashlytics only in release (manifestPlaceholders in build.gradle.kts). -->
+        <meta-data
+            android:name="firebase_crashlytics_collection_enabled"
+            android:value="${crashlyticsActivado}" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:theme="@style/Theme.Valoralo.Inicio"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

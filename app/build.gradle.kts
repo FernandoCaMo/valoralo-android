@@ -11,7 +11,17 @@ plugins {
 // when the file is present so the project builds without a Firebase config.
 if (file("google-services.json").exists()) {
     apply(plugin = libs.plugins.google.services.get().pluginId)
+    // Crashlytics needs the Firebase config; in release it also uploads the R8 mapping file.
+    apply(plugin = libs.plugins.firebase.crashlytics.get().pluginId)
 }
+
+/**
+ * Upload key, kept outside the repository: C:\Users\Fernando\.secrets\valoralo-upload.jks, with its
+ * path and passwords in the user's ~/.gradle/gradle.properties (VALORALO_UPLOAD_*). Never in this repo.
+ */
+val claveSubida = listOf(
+    "VALORALO_UPLOAD_STORE_FILE", "VALORALO_UPLOAD_STORE_PASSWORD", "VALORALO_UPLOAD_KEY_ALIAS", "VALORALO_UPLOAD_KEY_PASSWORD",
+).associateWith { project.findProperty(it) as String? }
 
 android {
     namespace = "com.valoralo"
@@ -21,10 +31,22 @@ android {
         applicationId = "com.valoralo"
         minSdk = 26
         targetSdk = 36
+        // Increase versionCode on every upload to Play.
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    signingConfigs {
+        if (claveSubida.values.all { !it.isNullOrBlank() }) {
+            create("subida") {
+                storeFile = file(claveSubida.getValue("VALORALO_UPLOAD_STORE_FILE")!!)
+                storePassword = claveSubida.getValue("VALORALO_UPLOAD_STORE_PASSWORD")
+                keyAlias = claveSubida.getValue("VALORALO_UPLOAD_KEY_ALIAS")
+                keyPassword = claveSubida.getValue("VALORALO_UPLOAD_KEY_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
@@ -32,10 +54,15 @@ android {
             // ./gradlew assembleDebug -Pvaloralo.emuladores=true → use the local Firebase emulators.
             val emuladores = (project.findProperty("valoralo.emuladores") as String?) == "true"
             buildConfigField("boolean", "USAR_EMULADORES", emuladores.toString())
+            manifestPlaceholders["crashlyticsActivado"] = "false"
         }
         release {
             buildConfigField("boolean", "USAR_EMULADORES", "false")
-            isMinifyEnabled = false
+            manifestPlaceholders["crashlyticsActivado"] = "true"
+            // Without the upload key the release build is unsigned (fine for CI checks, not for Play).
+            signingConfigs.findByName("subida")?.let { signingConfig = it }
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -49,6 +76,16 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+}
+
+// An AAB for Play must be signed with the upload key: fail early with a clear message.
+tasks.matching { it.name == "bundleRelease" }.configureEach {
+    doFirst {
+        check(android.signingConfigs.findByName("subida") != null) {
+            "Falta la clave de subida: añade VALORALO_UPLOAD_STORE_FILE, VALORALO_UPLOAD_STORE_PASSWORD, " +
+                "VALORALO_UPLOAD_KEY_ALIAS y VALORALO_UPLOAD_KEY_PASSWORD a ~/.gradle/gradle.properties."
+        }
     }
 }
 
@@ -91,6 +128,8 @@ dependencies {
     implementation(libs.firebase.storage)
     implementation(libs.firebase.appcheck.playintegrity)
     debugImplementation(libs.firebase.appcheck.debug)
+    implementation(libs.firebase.crashlytics)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)

@@ -1,0 +1,10 @@
+/* Shared style of the public pages (privacy, terms, account deletion). */
+:root { color-scheme: light dark; --texto: #1a1c1e; --fondo: #fcfcff; --aviso: #fff4d6; --borde: #c2c7cf; --enlace: #1f5e8c; }
+@media (prefers-color-scheme: dark) { :root { --texto: #e2e2e6; --fondo: #1a1c1e; --aviso: #3a3220; --borde: #42474e; --enlace: #9ccbfb; } }
+body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.6 system-ui, sans-serif; }
+main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
+h2 { font-size: 1.15rem; margin-top: 2rem; }
+.aviso { background: var(--aviso); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 16px; }
+a { color: var(--enlace); }
+li { margin-bottom: 0.3rem; }

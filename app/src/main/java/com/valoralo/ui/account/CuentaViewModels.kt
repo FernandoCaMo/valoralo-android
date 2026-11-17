@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.valoralo.data.auth.CuentaRepository
+import com.valoralo.data.bloqueos.BloqueosRepository
 import com.valoralo.data.auth.ErrorCuenta
 import com.valoralo.data.auth.GoogleSignIn
 import com.valoralo.data.auth.Reautenticacion
@@ -29,8 +30,37 @@ private val ZONA = ZoneId.of("Europe/Madrid")
 
 /** Session for the whole app (bottom bar, redirects, "Añadir valoración"). */
 @HiltViewModel
-class SesionViewModel @Inject constructor(repo: CuentaRepository) : ViewModel() {
+class SesionViewModel @Inject constructor(private val repo: CuentaRepository) : ViewModel() {
     val sesion: StateFlow<Sesion> = repo.sesion
+
+    private val _errorCondiciones = MutableStateFlow<String?>(null)
+    val errorCondiciones: StateFlow<String?> = _errorCondiciones.asStateFlow()
+
+    /** Accounts from before the terms of use (one-off screen). */
+    fun aceptarCondiciones() {
+        viewModelScope.launch {
+            _errorCondiciones.value = try {
+                repo.aceptarCondiciones()
+                null
+            } catch (e: ErrorCuenta) {
+                e.message ?: "No se ha podido guardar. Inténtalo de nuevo."
+            }
+        }
+    }
+
+    fun cerrarSesion() {
+        viewModelScope.launch { repo.cerrarSesion() }
+    }
+}
+
+/** Authors the user has blocked (Mi cuenta → Autores bloqueados). */
+@HiltViewModel
+class BloqueadosViewModel @Inject constructor(private val repo: BloqueosRepository) : ViewModel() {
+    val bloqueados: StateFlow<Map<String, String>> = repo.bloqueados
+
+    fun desbloquear(autorUid: String) {
+        viewModelScope.launch { runCatching { repo.desbloquear(autorUid) } }
+    }
 }
 
 // ---------- Login ----------
@@ -131,7 +161,7 @@ class RegistroViewModel @Inject constructor(private val repo: CuentaRepository) 
             }
             validarAlias(s.alias)?.let { put(CampoRegistro.ALIAS, it.mensaje) }
             validarFechaNacimiento(s.fechaNacimiento, LocalDate.now(ZONA))?.let { put(CampoRegistro.FECHA, it.mensaje) }
-            if (!s.aceptaPrivacidad) put(CampoRegistro.PRIVACIDAD, "Tienes que aceptar la política de privacidad.")
+            if (!s.aceptaPrivacidad) put(CampoRegistro.PRIVACIDAD, "Tienes que aceptar las condiciones de uso y la política de privacidad.")
         }
         _estado.update { it.copy(errores = errores, error = null) }
         return errores.isEmpty()

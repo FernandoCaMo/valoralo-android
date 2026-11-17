@@ -3,59 +3,95 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Valoralo · Política de privacidad (provisional)</title>
-  <style>
-    :root { color-scheme: light dark; --texto: #1a1c1e; --fondo: #fcfcff; --aviso: #fff4d6; --borde: #c2c7cf; --enlace: #1f5e8c; }
-    @media (prefers-color-scheme: dark) { :root { --texto: #e2e2e6; --fondo: #1a1c1e; --aviso: #3a3220; --borde: #42474e; --enlace: #9ccbfb; } }
-    body { margin: 0; background: var(--fondo); color: var(--texto); font: 16px/1.6 system-ui, sans-serif; }
-    main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
-    h1 { font-size: 1.6rem; margin-bottom: 0.2rem; }
-    h2 { font-size: 1.15rem; margin-top: 2rem; }
-    .aviso { background: var(--aviso); border: 1px solid var(--borde); border-radius: 12px; padding: 12px 16px; }
-    a { color: var(--enlace); }
-  </style>
+  <title>Valoralo · Política de privacidad</title>
+  <link rel="stylesheet" href="estilos.css">
 </head>
 <body>
 <main>
   <h1>Política de privacidad</h1>
-  <p><strong>Valoralo</strong> · versión provisional</p>
+  <p><strong>Valoralo</strong> · versión de noviembre de 2026</p>
 
-  <p class="aviso">Este texto es <strong>provisional</strong> y se sustituirá por la política definitiva antes de publicar la app.
-    Resume qué datos usa Valoralo y cómo ejercer tus derechos.</p>
+  <h2>Responsable</h2>
+  <p>Fernando Camino Mora es el responsable del tratamiento de tus datos en Valoralo.
+    Contacto: <a href="mailto:valoralo.app@gmail.com">valoralo.app@gmail.com</a>.</p>
 
-  <h2>Qué datos guardamos</h2>
+  <h2>Sin cuenta</h2>
+  <p>Puedes buscar centros y leer reseñas sin crear una cuenta. En ese caso no guardamos datos tuyos;
+    solo se procesa la información técnica necesaria para que la app funcione (ver «Seguridad y fallos»).</p>
+
+  <h2>Qué datos guardamos si creas una cuenta</h2>
   <ul>
-    <li><strong>Cuenta:</strong> tu correo electrónico (o tu cuenta de Google) para que puedas iniciar sesión.</li>
-    <li><strong>Perfil:</strong> el alias que eliges, tu rol (estudiante u otro) y la fecha de alta.</li>
+    <li><strong>Cuenta:</strong> tu correo electrónico o tu cuenta de Google (de la que Google nos facilita tu correo y tu nombre)
+      y un identificador de usuario.</li>
+    <li><strong>Perfil:</strong> el alias que eliges, tu rol (estudiante, otro o docente verificado), la fecha de alta
+      y la versión de las condiciones de uso que aceptaste.</li>
     <li><strong>Edad:</strong> te pedimos la fecha de nacimiento solo para comprobar que tienes al menos 14 años.
       <strong>No la guardamos</strong>; solo guardamos que eres mayor de 14.</li>
-    <li><strong>Valoraciones:</strong> cuando las escribas, se publican con tu alias, nunca con tu correo.</li>
+    <li><strong>Lo que haces en la app:</strong> tus valoraciones (notas y texto), que se publican con tu alias y nunca con tu correo;
+      los likes que das, tus centros favoritos, las reseñas que denuncias y los autores que bloqueas.
+      Para evitar abusos, contamos cuántos likes das en cada hora.</li>
   </ul>
 
+  <h2>Docentes que se verifican</h2>
+  <p>Si solicitas la verificación como docente, nos envías el nombre que figura en tu documento, su código seguro de
+    verificación (CSV) y, si quieres, el PDF. Un administrador los comprueba en la web de verificación de la Junta de Andalucía.
+    <strong>Al resolver la solicitud (o a los 30 días si nadie la revisa) borramos el nombre, el CSV en claro y el PDF.</strong>
+    Solo conservamos una huella cifrada del CSV (para que un mismo documento no se use dos veces), la fecha y el resultado.
+    El nombre declarado nunca se muestra en la app.</p>
+
   <h2>Para qué los usamos</h2>
-  <p>Solo para que puedas usar Valoralo: iniciar sesión, publicar y gestionar tus valoraciones y mantener la convivencia en la app.
-    No vendemos tus datos ni los usamos para publicidad.</p>
+  <ul>
+    <li>Para que puedas usar Valoralo: iniciar sesión, publicar y gestionar tus valoraciones, dar likes y guardar favoritos
+      (base legal: la ejecución del servicio que nos pides al crear la cuenta).</li>
+    <li>Para moderar el contenido, atender denuncias, verificar al profesorado y proteger la app frente a abusos
+      (base legal: nuestro interés legítimo en mantener un espacio fiable y respetuoso).</li>
+  </ul>
+  <p>No vendemos tus datos, no los usamos para publicidad y no hacemos perfiles comerciales.</p>
 
-  <h2>Profesorado</h2>
-  <p>En Valoralo el profesorado se valora por departamento, nunca por persona. No está permitido escribir nombres propios en las reseñas.</p>
+  <h2>Seguridad y fallos</h2>
+  <ul>
+    <li><strong>App Check (Play Integrity):</strong> la app demuestra que es la versión auténtica descargada de Google Play
+      mediante un testigo de integridad del dispositivo. Sirve para proteger el servicio frente a abusos.</li>
+    <li><strong>Dirección IP:</strong> los servicios de Google que usamos (Firebase Authentication y Cloud Functions) la reciben
+      por seguridad y para evitar abusos. No la usamos para conocer tu ubicación.</li>
+    <li><strong>Informes de fallos (Firebase Crashlytics):</strong> si la app se cierra por un error, se envía un informe técnico
+      (modelo de dispositivo, versión de Android, el error y un identificador de instalación). No incluye tu correo ni tu alias
+      y no lo vinculamos a tu cuenta. Se conserva 90 días.</li>
+  </ul>
 
-  <h2>Tus derechos</h2>
-  <p>Puedes cambiar tu alias y <strong>eliminar tu cuenta</strong> en cualquier momento desde <em>Mi cuenta</em> en la app.
-    También puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad
-    escribiendo a <a href="mailto:valoralo.app@gmail.com">valoralo.app@gmail.com</a>.</p>
+  <h2>Cuánto tiempo los conservamos</h2>
+  <p>Mientras tengas la cuenta. Si la eliminas, se borran tu perfil, tus valoraciones, tus likes (que se descuentan de las reseñas),
+    tus favoritos, tus denuncias y tus bloqueos. Los informes de fallos se borran a los 90 días.</p>
 
-  <h2>Contacto</h2>
-  <p>Para cualquier duda sobre privacidad o para denunciar un contenido: <a href="mailto:valoralo.app@gmail.com">valoralo.app@gmail.com</a>.</p>
+  <h2>Quién los trata</h2>
+  <p>Valoralo funciona sobre Firebase, de Google, que trata los datos por encargo nuestro y siguiendo nuestras instrucciones.
+    No cedemos tus datos a terceros.</p>
 
   <h2>Dónde se guardan</h2>
   <p>Tu perfil, tus valoraciones y el resto de datos de la app se guardan en la <strong>Unión Europea</strong>,
     en servidores de Google Cloud en <strong>Madrid (España)</strong>. Algunas tareas automáticas (por ejemplo,
-    borrar las solicitudes caducadas) se ejecutan en otros centros de datos de Google en la Unión Europea.</p>
-  <p>La cuenta de acceso (tu correo o tu cuenta de Google) la gestiona Firebase Authentication, un servicio de
-    Google que puede tratar esos datos fuera de la Unión Europea, con las garantías que exige el RGPD.</p>
+    recalcular las reseñas destacadas o borrar las solicitudes caducadas) se ejecutan en otros centros de datos de Google en la Unión Europea.</p>
+  <p>La cuenta de acceso (Firebase Authentication) y los informes de fallos (Crashlytics) pueden tratarse fuera de la Unión Europea,
+    con las garantías que exige el RGPD (cláusulas contractuales tipo y el Marco de Privacidad de Datos UE-EE. UU.).</p>
+
+  <h2>Tus derechos</h2>
+  <p>Puedes cambiar tu alias y <a href="eliminar-cuenta.html">eliminar tu cuenta</a> en cualquier momento desde <em>Mi cuenta</em> en la app.
+    También puedes ejercer tus derechos de acceso, rectificación, supresión, oposición, limitación y portabilidad
+    escribiendo a <a href="mailto:valoralo.app@gmail.com">valoralo.app@gmail.com</a>.
+    Si crees que no hemos atendido bien tu solicitud, puedes reclamar ante la Agencia Española de Protección de Datos
+    (<a href="https://www.aepd.es">www.aepd.es</a>).</p>
+
+  <h2>Menores</h2>
+  <p>Para crear una cuenta hay que tener al menos 14 años, la edad mínima para consentir el tratamiento de datos en España.</p>
+
+  <h2>Profesorado</h2>
+  <p>En Valoralo el profesorado se valora por departamento, nunca por persona. No está permitido escribir nombres propios en las reseñas.</p>
 
   <h2>Datos de los centros</h2>
   <p>La información de los centros procede de la Junta de Andalucía (CC BY 4.0).</p>
+
+  <h2>Cambios</h2>
+  <p>Si cambiamos esta política te lo indicaremos en la app. Consulta también las <a href="condiciones.html">condiciones de uso</a>.</p>
 </main>
 </body>
 </html>

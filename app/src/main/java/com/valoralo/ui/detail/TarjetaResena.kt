@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Verified
+import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
@@ -44,6 +45,8 @@ fun TarjetaResena(
     valoracion: Valoracion,
     modifier: Modifier = Modifier,
     onDenunciar: (() -> Unit)? = null,
+    /** "Bloquear": stop seeing this author's reviews (others' reviews only). */
+    onBloquear: (() -> Unit)? = null,
     etiquetaEstado: String? = null,
     /** What the heart shows; [onLike] null = own review (only the number). */
     like: EstadoLike = EstadoLike(dado = false, n = valoracion.nLikes),
@@ -96,6 +99,12 @@ fun TarjetaResena(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f),
                 )
+                if (onBloquear != null) {
+                    TextButton(onClick = onBloquear) {
+                        Icon(Icons.Outlined.Block, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Text(" Bloquear", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
                 if (onDenunciar != null) {
                     TextButton(onClick = onDenunciar) {
                         Icon(Icons.Outlined.Flag, contentDescription = null, modifier = Modifier.size(16.dp))

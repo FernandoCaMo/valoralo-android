@@ -23,6 +23,7 @@ enum class TipoErrorPublicacion(val mensaje: String) {
     SIN_SESION("Inicia sesión para continuar."),
     SIN_CONEXION("No hay conexión. Inténtalo de nuevo."),
     YA_DENUNCIADA("Ya has denunciado esta reseña."),
+    CONDICIONES("Acepta las condiciones de uso antes de publicar."),
     OTRO("No se ha podido completar. Inténtalo de nuevo."),
 }
 
@@ -37,6 +38,8 @@ enum class MotivoDenuncia(val etiqueta: String) {
     NOMBRE_PROPIO("Nombra a un profesor u otra persona"),
     DATOS_PERSONALES("Contiene datos personales"),
     FALSA_O_SPAM("Es falsa o spam"),
+    /** Reports the author, not only this review (Play's user-generated content policy). */
+    USUARIO_ABUSIVO("El autor publica de forma abusiva"),
     OTRO("Otro motivo"),
 }
 
@@ -52,6 +55,7 @@ fun errorDeFuncion(codigo: String, mensaje: String?, detalles: Any?): ErrorPubli
         "UNAUTHENTICATED" -> ErrorPublicacion(TipoErrorPublicacion.SIN_SESION)
         "ALREADY_EXISTS" -> ErrorPublicacion(TipoErrorPublicacion.YA_DENUNCIADA, mensaje ?: TipoErrorPublicacion.YA_DENUNCIADA.mensaje)
         "UNAVAILABLE", "DEADLINE_EXCEEDED" -> ErrorPublicacion(TipoErrorPublicacion.SIN_CONEXION)
+        "FAILED_PRECONDITION" if d?.get("motivo") == "CONDICIONES" -> ErrorPublicacion(TipoErrorPublicacion.CONDICIONES)
         // Messages written by our functions are already in Spanish.
         "FAILED_PRECONDITION", "NOT_FOUND", "RESOURCE_EXHAUSTED", "PERMISSION_DENIED" ->
             ErrorPublicacion(TipoErrorPublicacion.OTRO, mensaje ?: TipoErrorPublicacion.OTRO.mensaje)

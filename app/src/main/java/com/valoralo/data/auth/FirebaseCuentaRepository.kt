@@ -10,6 +10,7 @@ import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.valoralo.domain.model.CONDICIONES_VIGENTES
 import com.valoralo.domain.model.PerfilNuevo
 import com.valoralo.domain.model.Rol
 import com.valoralo.domain.model.Sesion
@@ -75,6 +76,7 @@ class FirebaseCuentaRepository @Inject constructor(
                             alias = it.getString("alias").orEmpty(),
                             rol = Rol.entries.firstOrNull { r -> r.name == it.getString("rol") } ?: Rol.OTRO,
                             verificado = it.getBoolean("verificado") ?: false,
+                            condiciones = it.getString("condiciones"),
                         )
                     },
                     conGoogle = conGoogle,
@@ -147,7 +149,7 @@ class FirebaseCuentaRepository @Inject constructor(
         usuario.reauthenticate(credencial).await()
         perfil(usuario.uid).delete().await()
         usuario.delete().await()
-        // TODO(Fase 5): a Cloud Function on user deletion will also remove their reviews.
+        // alBorrarUsuario (Cloud Function) removes the rest: reviews, likes, reports, blocks…
         Unit
     }
 
@@ -159,8 +161,15 @@ class FirebaseCuentaRepository @Inject constructor(
                 "verificado" to false,
                 "mayorDe14" to true,
                 "fechaAlta" to FieldValue.serverTimestamp(),
+                // Accepted with the checkbox of the sign-up form.
+                "condiciones" to CONDICIONES_VIGENTES,
             ),
         ).await()
+    }
+
+    override suspend fun aceptarCondiciones() = traducirErrores {
+        perfil(usuarioActual().uid).update("condiciones", CONDICIONES_VIGENTES).await()
+        Unit
     }
 
     private fun perfil(uid: String) = db.collection("usuarios").document(uid)

@@ -143,9 +143,12 @@ service cloud.firestore {
       // reviews. Only the owner; the id is the author's uid; alBorrarUsuario deletes them.
       match /bloqueados/{autor} {
         allow read, delete: if esPropio();
+        // alias: the author's public alias, only to show the list in Mi cuenta.
         allow create: if esPropio() && autor != uid
-          && request.resource.data.keys().hasOnly(['fecha'])
-          && request.resource.data.fecha == request.time;
+          && request.resource.data.keys().hasOnly(['fecha', 'alias'])
+          && request.resource.data.keys().hasAll(['fecha', 'alias'])
+          && request.resource.data.fecha == request.time
+          && request.resource.data.alias is string && request.resource.data.alias.size() <= 30;
         allow update: if false;
       }
 

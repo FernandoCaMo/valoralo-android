@@ -100,6 +100,8 @@ centros/{codigo}/valoraciones/{autorUid}/likes/{uid} { uid, codigo, fecha }   //
   // el contador por hora en la misma escritura. nLikes de la reseña: solo alCambiarLike (recuenta).
 usuarios/{uid}/limites/likes { inicio, n }   // likes de la hora en curso; +1 o empieza una hora nueva
 config/likes { maxPorHora: 60 }               // lo leen las reglas (60 si no existe)
+usuarios/{uid}.condiciones: "2026-11"         // versión de las condiciones de uso aceptada
+usuarios/{uid}/bloqueados/{autorUid} { fecha, alias }   // autores bloqueados; solo el dueño
   // Se cambia desde la consola de Firebase, sin desplegar; el cambio vale desde el siguiente cálculo.
 
 Pestañas: Inicio (logo, carrusel de destacadas, "Buscar un centro" y, con sesión, 3 favoritos) ·

@@ -13,6 +13,8 @@ import com.valoralo.domain.model.Sesion
 import com.valoralo.domain.model.StatsDepartamento
 import com.valoralo.domain.model.StatsGrupo
 import com.valoralo.domain.model.Valoracion
+import com.valoralo.data.bloqueos.BloqueosRepository
+import com.valoralo.data.bloqueos.ExcepcionBloqueo
 import com.valoralo.data.likes.ClaveResena
 import com.valoralo.data.likes.LikesRepository
 import com.valoralo.domain.usecase.EstadoLike
@@ -64,6 +66,7 @@ class DetailViewModel @Inject constructor(
     cuentas: CuentaRepository,
     private val valoraciones: ValoracionRepository,
     likesRepo: LikesRepository,
+    private val bloqueos: BloqueosRepository,
 ) : ViewModel() {
 
     private val codigo: String = checkNotNull(savedStateHandle[ARG_CODIGO])
@@ -75,11 +78,13 @@ class DetailViewModel @Inject constructor(
     /** One-off messages (report sent, errors). */
     val aviso: StateFlow<String?> = _aviso.asStateFlow()
 
+    // Reviews of blocked authors are not shown to this user.
     private val base = combine(
         repository.observarCentro(codigo),
         repository.observarValoraciones(codigo),
         filtroRol,
-    ) { centro, resenas, filtro -> Triple(centro, resenas, filtro) }
+        bloqueos.bloqueados,
+    ) { centro, resenas, filtro, bloqueados -> Triple(centro, resenas.filterNot { it.uid in bloqueados }, filtro) }
 
     private val usuario = combine(
         cuentas.sesion,
@@ -130,6 +135,17 @@ class DetailViewModel @Inject constructor(
                 valoraciones.denunciar(codigo, autorUid, motivo)
                 "Gracias. Hemos recibido tu denuncia y la revisaremos."
             } catch (e: ErrorPublicacion) {
+                e.message
+            }
+        }
+    }
+
+    fun bloquear(v: Valoracion) {
+        viewModelScope.launch {
+            _aviso.value = try {
+                bloqueos.bloquear(v.uid, v.alias)
+                "Has bloqueado a ${v.alias}. Ya no verás sus reseñas. Puedes desbloquearlo en Mi cuenta."
+            } catch (e: ExcepcionBloqueo) {
                 e.message
             }
         }

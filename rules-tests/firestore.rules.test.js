@@ -252,19 +252,21 @@ describe("usuarios", () => {
 
     test("cada usuario bloquea, ve y desbloquea a sus bloqueados", async () => {
       const db = usuario("autorA");
-      await assertSucceeds(setDoc(bloqueo(db, "autorA", "autorB"), { fecha: serverTimestamp() }));
+      await assertSucceeds(setDoc(bloqueo(db, "autorA", "autorB"), { fecha: serverTimestamp(), alias: "Autor B" }));
       await assertSucceeds(getDoc(bloqueo(db, "autorA", "autorB")));
       await assertSucceeds(getDocs(collection(db, "usuarios/autorA/bloqueados")));
       await assertSucceeds(deleteDoc(bloqueo(db, "autorA", "autorB")));
     });
 
-    test("ni otros usuarios ni sin sesión; no a sí mismo; solo la fecha del servidor", async () => {
-      await assertFails(setDoc(bloqueo(usuario("autorB"), "autorA", "autorC"), { fecha: serverTimestamp() }));
+    test("ni otros usuarios ni sin sesión; no a sí mismo; fecha del servidor, alias y nada más", async () => {
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: serverTimestamp() }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: serverTimestamp(), alias: "x".repeat(31) }));
+      await assertFails(setDoc(bloqueo(usuario("autorB"), "autorA", "autorC"), { fecha: serverTimestamp(), alias: "Autor B" }));
       await assertFails(getDocs(collection(usuario("autorB"), "usuarios/autorA/bloqueados")));
-      await assertFails(setDoc(bloqueo(anonimo(), "autorA", "autorB"), { fecha: serverTimestamp() }));
-      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorA"), { fecha: serverTimestamp() }));
-      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: new Date(2020, 0, 1) }));
-      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: serverTimestamp(), alias: "B" }));
+      await assertFails(setDoc(bloqueo(anonimo(), "autorA", "autorB"), { fecha: serverTimestamp(), alias: "Autor B" }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorA"), { fecha: serverTimestamp(), alias: "Autor B" }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: new Date(2020, 0, 1), alias: "Autor B" }));
+      await assertFails(setDoc(bloqueo(usuario("autorA"), "autorA", "autorB"), { fecha: serverTimestamp(), alias: "B", uid: "autorB" }));
     });
   });
 });

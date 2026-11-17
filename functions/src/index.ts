@@ -363,5 +363,11 @@ export const alBorrarUsuario = onDocumentDeleted("usuarios/{uid}", async (event)
   await db().recursiveDelete(db().collection(`usuarios/${uid}/favoritos`));
   await db().recursiveDelete(db().collection(`usuarios/${uid}/limites`));
   await db().recursiveDelete(db().collection(`usuarios/${uid}/bloqueados`));
+  // Teacher verification: the request (with its private data) and any PDF. The CSV hash stays in
+  // csvUsados so the document can't be reused, but no longer linked to the deleted account.
+  await db().recursiveDelete(db().doc(`verificaciones/${uid}`));
+  await getStorage().bucket().deleteFiles({ prefix: `verificaciones/${uid}/` }).catch((e) => logger.warn("PDF de verificación", { uid, e: String(e) }));
+  const csv = await db().collection("csvUsados").where("uid", "==", uid).get();
+  await Promise.all(csv.docs.map((d) => d.ref.update({ uid: FieldValue.delete() })));
   logger.info("Cuenta eliminada: datos borrados", { uid, valoraciones: valoraciones.size, denuncias: denuncias.size, likes: likes.size });
 });

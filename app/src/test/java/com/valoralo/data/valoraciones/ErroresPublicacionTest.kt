@@ -27,6 +27,9 @@ class ErroresPublicacionTest {
         assertEquals(TipoErrorPublicacion.SIN_SESION, errorDeFuncion("UNAUTHENTICATED", "x", null).tipo)
         assertEquals(TipoErrorPublicacion.YA_DENUNCIADA, errorDeFuncion("ALREADY_EXISTS", "Ya has denunciado esta reseña.", null).tipo)
         assertEquals(TipoErrorPublicacion.SIN_CONEXION, errorDeFuncion("UNAVAILABLE", null, null).tipo)
+        // Terms of use not accepted: its own type, so the app can ask for them.
+        assertEquals(TipoErrorPublicacion.CONDICIONES, errorDeFuncion("FAILED_PRECONDITION", "x", mapOf("motivo" to "CONDICIONES")).tipo)
+        assertEquals(TipoErrorPublicacion.OTRO, errorDeFuncion("FAILED_PRECONDITION", "Completa tu perfil.", null).tipo)
         assertEquals(TipoErrorPublicacion.OTRO, errorDeFuncion("INTERNAL", "INTERNAL", null).tipo)
         assertEquals(TipoErrorPublicacion.OTRO.mensaje, errorDeFuncion("INTERNAL", "INTERNAL", null).message)
     }

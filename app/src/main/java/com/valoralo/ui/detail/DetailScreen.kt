@@ -111,9 +111,10 @@ fun DetailScreen(
     DetailContent(
         state, onVolver, onAnadirValoracion, viewModel::onFiltroRolChange,
         onDenunciar = { autor, motivo -> viewModel.denunciar(autor, motivo) },
-        onIniciarSesion = { onIniciarSesion("Inicia sesión para denunciar una reseña.") },
+        onIniciarSesion = { onIniciarSesion("Inicia sesión para denunciar o bloquear.") },
         onOrdenChange = viewModel::onOrdenChange,
         onLike = viewModel::alternarLike,
+        onBloquear = viewModel::bloquear,
         accionesBarra = { centro ->
             BotonFavorito(centro.codigo in favoritos.orEmpty(), centro.nombre) { acciones.alternarFavorito(centro.codigo) }
             val comparando = centro.codigo in seleccion
@@ -139,6 +140,7 @@ private fun DetailContent(
     onIniciarSesion: () -> Unit,
     onOrdenChange: (OrdenResenas) -> Unit,
     onLike: (Valoracion) -> Unit,
+    onBloquear: (Valoracion) -> Unit,
     accionesBarra: @Composable (Centro) -> Unit,
 ) {
     Scaffold(
@@ -177,7 +179,7 @@ private fun DetailContent(
             DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
                 Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
             }
-            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike)
+            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike, onBloquear)
         }
     }
 }
@@ -191,9 +193,20 @@ private fun DetailLista(
     onIniciarSesion: () -> Unit,
     onOrdenChange: (OrdenResenas) -> Unit,
     onLike: (Valoracion) -> Unit,
+    onBloquear: (Valoracion) -> Unit,
 ) {
     val centro = state.centro
     var denunciando by remember { mutableStateOf<Valoracion?>(null) }
+    var bloqueando by remember { mutableStateOf<Valoracion?>(null) }
+    bloqueando?.let { v ->
+        AlertDialog(
+            onDismissRequest = { bloqueando = null },
+            title = { Text("¿Bloquear a ${v.alias}?") },
+            text = { Text("Dejarás de ver sus reseñas en Valoralo. Puedes desbloquearlo cuando quieras en Mi cuenta.") },
+            confirmButton = { TextButton(onClick = { onBloquear(v); bloqueando = null }) { Text("Bloquear") } },
+            dismissButton = { TextButton(onClick = { bloqueando = null }) { Text("Cancelar") } },
+        )
+    }
     denunciando?.let { v ->
         DialogoDenuncia(
             onDenunciar = { motivo -> onDenunciar(v.uid, motivo); denunciando = null },
@@ -246,6 +259,7 @@ private fun DetailLista(
                 TarjetaResena(
                     v,
                     onDenunciar = { if (state.uidActual == null) onIniciarSesion() else denunciando = v },
+                    onBloquear = { if (state.uidActual == null) onIniciarSesion() else bloqueando = v },
                     like = state.likes[v.uid] ?: EstadoLike(false, v.nLikes),
                     onLike = { onLike(v) },
                 )
