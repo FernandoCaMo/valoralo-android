@@ -45,6 +45,12 @@ class FavoritosViewModel @Inject constructor(repo: CentroRepository) : ViewModel
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 }
 
+/** The favourite centros in the order of [codigos] (most recently added first). */
+fun centrosEnOrden(centros: List<Centro>, codigos: Collection<String>): List<Centro> {
+    val porCodigo = centros.associateBy { it.codigo }
+    return codigos.mapNotNull { porCodigo[it] }
+}
+
 @Composable
 fun FavoritesScreen(
     acciones: AccionesCentroViewModel,
@@ -69,7 +75,7 @@ fun FavoritesScreen(
         }
         centros == null -> Box(Modifier.fillMaxSize(), Alignment.Center) { CircularProgressIndicator() }
         else -> {
-            val guardados = centros.orEmpty().filter { it.codigo in codigos }
+            val guardados = centrosEnOrden(centros.orEmpty(), codigos)
             if (guardados.isEmpty()) {
                 PantallaPendiente(
                     icono = Icons.Outlined.FavoriteBorder,

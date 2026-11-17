@@ -1,13 +1,14 @@
-package com.valoralo.ui.home
+package com.valoralo.ui.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.valoralo.data.repository.CentroRepository
 import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
-import com.valoralo.domain.model.PROVINCIAS_ANDALUCIA
 import com.valoralo.domain.usecase.FiltroCentros
+import com.valoralo.domain.usecase.OpcionesFiltro
 import com.valoralo.domain.usecase.filtrar
+import com.valoralo.domain.usecase.opcionesFiltro
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -18,15 +19,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import javax.inject.Inject
 
-data class OpcionesFiltro(
-    val provincias: List<String> = PROVINCIAS_ANDALUCIA,
-    /** Municipios of the selected provincia (empty when none is selected). */
-    val municipios: List<String> = emptyList(),
-    val tipos: List<String> = emptyList(),
-    val niveles: List<String> = emptyList(),
-)
-
-data class HomeUiState(
+data class BuscarUiState(
     val cargando: Boolean = true,
     /** The catalogue could not be loaded (no network, permissions…). */
     val error: Boolean = false,
@@ -36,51 +29,41 @@ data class HomeUiState(
     val filtro: FiltroCentros = FiltroCentros(),
     val centros: List<Centro> = emptyList(),
     val opciones: OpcionesFiltro = OpcionesFiltro(),
+    /** Provincias deduced from the chosen ciudades when no provincia is chosen. */
+    val provinciasDeducidas: Set<String> = emptySet(),
 )
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
+class BuscarViewModel @Inject constructor(
     repository: CentroRepository,
 ) : ViewModel() {
 
     private val texto = MutableStateFlow("")
     private val filtro = MutableStateFlow(FiltroCentros())
+    private var todos: List<Centro> = emptyList()
 
-    private val catalogo: StateFlow<HomeUiState> =
+    private val catalogo: StateFlow<BuscarUiState> =
         combine(repository.observarCentros(), texto, filtro) { centros, texto, filtro ->
-            HomeUiState(
+            todos = centros
+            BuscarUiState(
                 cargando = false,
                 texto = texto,
                 filtro = filtro,
                 centros = centros.filtrar(texto, filtro),
-                opciones = opcionesPara(centros, filtro),
+                opciones = opcionesFiltro(centros, filtro),
+                provinciasDeducidas = filtro.provinciasDeducidas(centros),
             )
-        }.catch { emit(HomeUiState(cargando = false, error = true)) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+        }.catch { emit(BuscarUiState(cargando = false, error = true)) }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BuscarUiState())
 
-    val uiState: StateFlow<HomeUiState> =
+    val uiState: StateFlow<BuscarUiState> =
         combine(catalogo, repository.progresoDescarga) { estado, progreso -> estado.copy(progreso = progreso) }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), BuscarUiState())
 
     fun onTextoChange(nuevo: String) = texto.update { nuevo }
 
-    fun onFiltroChange(nuevo: FiltroCentros) = filtro.update { nuevo }
+    /** Always keeps ciudades and localidades consistent with what is chosen above them. */
+    fun onFiltroChange(nuevo: FiltroCentros) = filtro.update { nuevo.coherente(todos) }
 
     fun limpiarFiltros() = filtro.update { FiltroCentros() }
-
-    private fun opcionesPara(centros: List<Centro>, filtro: FiltroCentros) = OpcionesFiltro(
-        municipios = filtro.provincia?.let { p ->
-            centros.filter { it.provincia == p }.map { it.municipio }.distinct().sorted()
-        }.orEmpty(),
-        tipos = centros.map { it.tipo }.distinct().sorted(),
-        niveles = centros.flatMap { c -> c.ensenanzas.map { it.nivel } }.distinct()
-            .sortedBy { ORDEN_NIVELES.indexOf(it).takeIf { i -> i >= 0 } ?: Int.MAX_VALUE },
-    )
-
-    private companion object {
-        val ORDEN_NIVELES = listOf(
-            "Infantil", "Primaria", "ESO", "Bachillerato",
-            "FP Grado Básico", "FP Grado Medio", "FP Grado Superior",
-        )
-    }
 }

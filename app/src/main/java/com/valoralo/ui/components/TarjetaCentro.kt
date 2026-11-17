@@ -1,4 +1,4 @@
-package com.valoralo.ui.components
+﻿package com.valoralo.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,9 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.valoralo.domain.model.Centro
-import com.valoralo.ui.home.ubicacion
 
-/** Card of a centro on Inicio and Favoritos: favourite heart, "Ver más" and "Comparar". */
+/** Card of a centro on Buscar, Inicio and Favoritos: favourite heart, "Ver más" and "Comparar". */
 @Composable
 fun TarjetaCentro(
     centro: Centro,
@@ -38,10 +37,11 @@ fun TarjetaCentro(
     onVerMas: () -> Unit,
     onFavorito: () -> Unit,
     onComparar: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    ElevatedCard(Modifier.fillMaxWidth().clickable(onClick = onVerMas)) {
+    ElevatedCard(modifier.fillMaxWidth().clickable(onClick = onVerMas)) {
         Row(Modifier.padding(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            FotoCentro(centro.fotoUrl, Modifier.size(96.dp))
+            FotoCentro(centro.fotoUrl, centro.tipo, Modifier.size(96.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.Top) {
                     Text(

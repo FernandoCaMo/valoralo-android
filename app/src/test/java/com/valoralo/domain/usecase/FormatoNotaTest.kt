@@ -25,6 +25,13 @@ class FormatoNotaTest {
     }
 
     @Test
+    fun `boton de los filtros con el numero de centros`() {
+        assertEquals("Ver 0 centros", textoVerCentros(0))
+        assertEquals("Ver 1 centro", textoVerCentros(1))
+        assertEquals("Ver 3.711 centros", textoVerCentros(3711))
+    }
+
+    @Test
     fun `numero de resenas en singular y plural`() {
         assertEquals("sin reseñas", textoResenas(0))
         assertEquals("1 reseña", textoResenas(1))

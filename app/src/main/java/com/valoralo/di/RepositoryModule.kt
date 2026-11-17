@@ -2,6 +2,8 @@ package com.valoralo.di
 
 import com.valoralo.data.auth.CuentaRepository
 import com.valoralo.data.auth.FirebaseCuentaRepository
+import com.valoralo.data.destacadas.DestacadasRepository
+import com.valoralo.data.destacadas.FirebaseDestacadasRepository
 import com.valoralo.data.favoritos.FavoritosRepository
 import com.valoralo.data.favoritos.FirebaseFavoritosRepository
 import com.valoralo.data.local.room.RoomCatalogoLocal
@@ -44,4 +46,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindFavoritosRepository(impl: FirebaseFavoritosRepository): FavoritosRepository
+
+    @Binds
+    abstract fun bindDestacadasRepository(impl: FirebaseDestacadasRepository): DestacadasRepository
 }

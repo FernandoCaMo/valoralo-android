@@ -1,4 +1,4 @@
-package com.valoralo.ui.home
+package com.valoralo.ui.search
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,25 +56,23 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.usecase.FiltroCentros
-import com.valoralo.ui.components.FotoCentro
 import com.valoralo.ui.components.AccionesCentroViewModel
-import com.valoralo.ui.components.LogoValoralo
 import com.valoralo.ui.components.TarjetaCentro
-import com.valoralo.ui.components.NotaMedia
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 
+/** Buscar: the catalogue list with the search box and the filters. */
 @Composable
-fun HomeScreen(
+fun BuscarScreen(
     onVerCentro: (codigo: String) -> Unit,
     acciones: AccionesCentroViewModel,
-    enfocarBuscador: Boolean = false,
-    viewModel: HomeViewModel = hiltViewModel(),
+    viewModel: BuscarViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val favoritos by acciones.favoritos.collectAsStateWithLifecycle()
     val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
-    HomeContent(
+    BuscarContent(
         state = state,
-        enfocarBuscador = enfocarBuscador,
         onTextoChange = viewModel::onTextoChange,
         onFiltroChange = viewModel::onFiltroChange,
         onLimpiarFiltros = viewModel::limpiarFiltros,
@@ -88,9 +86,8 @@ fun HomeScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeContent(
-    state: HomeUiState,
-    enfocarBuscador: Boolean,
+private fun BuscarContent(
+    state: BuscarUiState,
     onTextoChange: (String) -> Unit,
     onFiltroChange: (FiltroCentros) -> Unit,
     onLimpiarFiltros: () -> Unit,
@@ -110,7 +107,6 @@ private fun HomeContent(
         Buscador(
             texto = state.texto,
             onTextoChange = onTextoChange,
-            enfocar = enfocarBuscador,
             modifier = Modifier.padding(horizontal = 16.dp),
         )
         Spacer(Modifier.height(8.dp))
@@ -150,6 +146,8 @@ private fun HomeContent(
         FiltrosSheet(
             filtro = state.filtro,
             opciones = state.opciones,
+            provinciasDeducidas = state.provinciasDeducidas,
+            resultados = state.centros.size,
             onFiltroChange = onFiltroChange,
             onLimpiar = onLimpiarFiltros,
             onDismiss = { mostrarFiltros = false },
@@ -163,7 +161,11 @@ private fun Cabecera(filtrosActivos: Int, onFiltros: () -> Unit) {
         modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LogoValoralo(Modifier.weight(1f))
+        Text(
+            "Buscar centros",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.weight(1f).semantics { heading() },
+        )
         BadgedBox(
             badge = { if (filtrosActivos > 0) Badge { Text("$filtrosActivos") } },
         ) {
@@ -180,17 +182,14 @@ private fun Cabecera(filtrosActivos: Int, onFiltros: () -> Unit) {
 private fun Buscador(
     texto: String,
     onTextoChange: (String) -> Unit,
-    enfocar: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val focusRequester = remember { FocusRequester() }
     val focusManager = LocalFocusManager.current
-    LaunchedEffect(enfocar) { if (enfocar) focusRequester.requestFocus() }
 
     OutlinedTextField(
         value = texto,
         onValueChange = onTextoChange,
-        modifier = modifier.fillMaxWidth().focusRequester(focusRequester),
+        modifier = modifier.fillMaxWidth(),
         placeholder = { Text("Buscar centro educativo…") },
         leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
         trailingIcon = {
@@ -250,13 +249,4 @@ private fun SinResultados(hayFiltros: Boolean, onLimpiarFiltros: () -> Unit) {
             TextButton(onClick = onLimpiarFiltros) { Text("Quitar filtros") }
         }
     }
-}
-
-/**
- * "Dos Hermanas (Sevilla)", or just "Sevilla" when municipio and provincia match.
- * When the localidad differs from the municipio: "Aguadulce, Roquetas de Mar (Almería)".
- */
-fun Centro.ubicacion(): String {
-    val lugar = if (localidad.isNotBlank() && localidad != municipio) "$localidad, $municipio" else municipio
-    return if (lugar == provincia) lugar else "$lugar ($provincia)"
 }

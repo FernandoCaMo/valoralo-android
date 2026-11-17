@@ -20,6 +20,8 @@ Fase	Contenido
 5. Valoraciones	Formulario de 3 bloques + departamentos, agregados por rol, filtro de reseñas. (Se hace antes que la 4; ver decisiones.md.)
 4. Verificación docente	Pantalla de solicitud, Functions, reglas, panel admin sencillo.
 6. Extras MVP	Favoritos, comparador, denuncias, moderación (en el panel de administración; el script queda como respaldo).
+6b. Portada	Inicio con reseñas destacadas, Buscar con filtros plegables de selección múltiple, ilustraciones por tipo de centro.
+6c. Fotos	Fotos de fachada subidas por usuarios, revisadas en el panel (pestaña Fotos); condiciones de uso.
 7. Publicación	Privacidad, condiciones, pruebas, Google Play.
 Checklist al llegar a casa
 [ ] Acceso de Claude al repo: en GitHub → Settings → Applications → Claude → Configure, y añade valoralo-android a los repositorios permitidos (o elige "All repositories"). Si la app de Claude no aparece, conéctala desde claude.ai → Ajustes → Conectores → GitHub.

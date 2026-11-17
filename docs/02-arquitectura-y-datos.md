@@ -83,7 +83,25 @@ catalogo/{provincia}-{parte}                  // catálogo resumido para Inicio 
   // alEscribirValoracion actualiza la nota y el nº de reseñas del centro en su documento de catálogo.
 config/departamentos { porTipo: { "IES": [...], ... } }   // listas estándar por tipo
 
-Caché del catálogo (Room): Inicio lee los centros (con sus notas) de una caché local. En cada arranque
+destacadas/actual   // reseñas destacadas de Inicio (lectura pública; solo backend). Abrir Inicio = 1 lectura.
+  { resenas: [{ clave (huella de centro + autor, sin uid), codigo, nombre, municipio, tipo, alias, rolAutor,
+      verificado, nota (de esa reseña), extracto (~200 caracteres), fecha }],
+    minimoParaMostrar, generada }
+  // La calcula calcularDestacadas (cada día, 05:00, europe-west1) o recalcularDestacadas (botón del panel).
+  // alEscribirValoracion y denunciarValoracion retiran al momento una destacada que se oculta, se edita,
+  // se borra o se denuncia.
+config/destacadas   // números de la selección; si falta un campo o no es válido, se usa el valor por defecto
+  { minCaracteres: 120, maxDias: 180, maxResenas: 12, maxFraccionAltas: 0.333, umbralAlta: 4.5,
+    umbralBaja: 3.5, minimoParaMostrar: 3, longitudExtracto: 200 }
+  // Se cambia desde la consola de Firebase, sin desplegar; el cambio vale desde el siguiente cálculo.
+
+Pestañas: Inicio (logo, carrusel de destacadas, "Buscar un centro" y, con sesión, 3 favoritos) ·
+Buscar (lista con buscador y filtros) · Favoritos · Mi cuenta.
+Filtros de Buscar, todos de selección múltiple y en secciones plegables: Provincia → Ciudad (municipio)
+→ Localidad → Tipo de centro → Enseñanzas. Ciudad y Localidad solo ofrecen lo que encaja con lo
+elegido arriba y tienen buscador.
+
+Caché del catálogo (Room): Buscar lee los centros (con sus notas) de una caché local. En cada arranque
 se lee config/catalogo (1 lectura); el catálogo se vuelve a descargar (los documentos catalogo/*, ~8
 lecturas, en paralelo y con "Descargando centros…" y su progreso) si cambia la versión, si la caché
 tiene más de 24 horas o si cambia el formato de la caché. Sin red se muestra la caché. El detalle del

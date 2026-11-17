@@ -1,6 +1,8 @@
 package com.valoralo.data.remote.firestore
 
 import com.valoralo.domain.model.Centro
+import com.valoralo.domain.model.Destacada
+import com.valoralo.domain.model.Destacadas
 import com.valoralo.domain.model.Ensenanza
 import com.valoralo.domain.model.EstadoValoracion
 import com.valoralo.domain.model.Fragmento
@@ -158,6 +160,30 @@ private fun Map<*, *>.grupo(clave: String): StatsGrupo {
         }.toMap(),
     )
 }
+
+/** destacadas/actual. Incomplete entries (or an unknown role) are skipped. */
+fun Map<String, Any?>.aDestacadas(): Destacadas = Destacadas(
+    resenas = lista("resenas").mapNotNull { item ->
+        @Suppress("UNCHECKED_CAST")
+        val r = item as? Map<String, Any?> ?: return@mapNotNull null
+        val codigo = r.textoONull("codigo") ?: return@mapNotNull null
+        val extracto = r.textoONull("extracto") ?: return@mapNotNull null
+        val nota = r.decimal("nota") ?: return@mapNotNull null
+        Destacada(
+            codigo = codigo,
+            nombreCentro = r.textoONull("nombre") ?: codigo,
+            municipio = r.textoONull("municipio"),
+            tipo = r.textoONull("tipo"),
+            alias = r.texto("alias"),
+            rol = enumONull<Rol>(r["rolAutor"]) ?: return@mapNotNull null,
+            verificado = r["verificado"] == true,
+            nota = nota,
+            extracto = extracto,
+            fecha = fecha(r["fecha"]),
+        )
+    },
+    minimoParaMostrar = entero("minimoParaMostrar") ?: Destacadas().minimoParaMostrar,
+)
 
 private fun Map<String, Any?>.texto(clave: String): String = (get(clave) as? String).orEmpty()
 private fun Map<String, Any?>.textoONull(clave: String): String? = (get(clave) as? String)?.takeIf { it.isNotBlank() }

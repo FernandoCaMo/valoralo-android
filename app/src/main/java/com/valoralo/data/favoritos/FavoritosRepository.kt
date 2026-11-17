@@ -4,6 +4,7 @@ import android.util.Log
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -56,7 +57,9 @@ class FirebaseFavoritosRepository @Inject constructor(
     @OptIn(ExperimentalCoroutinesApi::class)
     override val favoritos: StateFlow<Set<String>?> = uid.flatMapLatest { uid ->
         if (uid == null) flowOf<Set<String>?>(null) else callbackFlow<Set<String>?> {
-            val registro = db.collection("usuarios/$uid/favoritos").addSnapshotListener { snap, error ->
+            // Most recently added first (Inicio shows the first three). The set keeps this order.
+            val consulta = db.collection("usuarios/$uid/favoritos").orderBy("fecha", Query.Direction.DESCENDING)
+            val registro = consulta.addSnapshotListener { snap, error ->
                 if (error != null) {
                     Log.w(TAG, "Error leyendo favoritos", error)
                     return@addSnapshotListener

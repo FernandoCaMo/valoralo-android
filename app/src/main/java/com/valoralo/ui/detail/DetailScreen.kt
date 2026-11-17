@@ -1,9 +1,11 @@
-package com.valoralo.ui.detail
+﻿package com.valoralo.ui.detail
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
+import com.valoralo.ui.components.FotoCentro
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -75,7 +77,7 @@ import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.BotonFavorito
 import com.valoralo.ui.components.FUENTE_DATOS
-import com.valoralo.ui.home.ubicacion
+import com.valoralo.ui.components.ubicacion
 
 @Composable
 fun DetailScreen(
@@ -221,6 +223,12 @@ private fun DetailLista(
 @Composable
 private fun Cabecera(centro: Centro) {
     Column {
+        FotoCentro(
+            centro.fotoUrl,
+            centro.tipo,
+            Modifier.fillMaxWidth().aspectRatio(16f / 9f),
+        )
+        Spacer(Modifier.height(12.dp))
         Text(centro.nombre, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         Text(
             "${centro.tipo} · ${centro.ubicacion()}",

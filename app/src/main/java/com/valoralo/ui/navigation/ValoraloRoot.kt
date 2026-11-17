@@ -34,7 +34,8 @@ import com.valoralo.ui.account.SesionViewModel
 import com.valoralo.ui.detail.DetailScreen
 import com.valoralo.ui.detail.DetailViewModel
 import com.valoralo.ui.favorites.FavoritesScreen
-import com.valoralo.ui.home.HomeScreen
+import com.valoralo.ui.home.InicioScreen
+import com.valoralo.ui.search.BuscarScreen
 import com.valoralo.ui.review.ReviewScreen
 import com.valoralo.ui.verify.VerificarDocenteScreen
 import com.valoralo.ui.review.ReviewViewModel
@@ -139,10 +140,15 @@ fun ValoraloRoot(
             modifier = Modifier.padding(padding),
         ) {
             composable(Rutas.HOME) {
-                HomeScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones)
+                InicioScreen(
+                    acciones = acciones,
+                    onVerCentro = { navController.navigate(Rutas.centro(it)) },
+                    onBuscar = { navController.irAPestana(Pestana.BUSCAR) },
+                    onVerFavoritos = { navController.irAPestana(Pestana.FAVORITOS) },
+                )
             }
             composable(Rutas.SEARCH) {
-                HomeScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones, enfocarBuscador = true)
+                BuscarScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones)
             }
             composable(
                 Rutas.COMPARAR,
