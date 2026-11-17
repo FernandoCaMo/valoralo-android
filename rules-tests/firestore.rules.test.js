@@ -9,6 +9,7 @@ import {
 } from "@firebase/rules-unit-testing";
 import {
   collection,
+  collectionGroup,
   doc,
   getDoc,
   getDocs,
@@ -106,6 +107,14 @@ describe("valoraciones", () => {
     const propia = doc(usuario("autorA"), "centros/21000693/valoraciones/autorA");
     await assertFails(updateDoc(propia, { rolAutor: "DOCENTE" }));
     await assertFails(updateDoc(doc(usuario("autorB"), "centros/21000693/valoraciones/autorB"), { estado: "PUBLICADA" }));
+  });
+
+  test("los administradores leen las de cualquier estado de todos los centros (panel)", async () => {
+    const admin = env.authenticatedContext("admin1", { admin: true }).firestore();
+    await assertSucceeds(getDoc(doc(admin, "centros/21000693/valoraciones/autorB")));
+    await assertSucceeds(getDocs(query(collectionGroup(admin, "valoraciones"), where("estado", "==", "EN_REVISION"))));
+    await assertFails(getDocs(query(collectionGroup(usuario("autorA"), "valoraciones"), where("estado", "==", "EN_REVISION"))));
+    await assertFails(updateDoc(doc(admin, "centros/21000693/valoraciones/autorB"), { estado: "PUBLICADA" }));
   });
 
   test("el autor puede borrar la suya y nadie más", async () => {
@@ -259,15 +268,48 @@ describe("verificaciones de docentes", () => {
   });
 });
 
+describe("favoritos", () => {
+  const fav = (uid, codigo) => doc(usuario(uid), `usuarios/${uid}/favoritos/${codigo}`);
+
+  test("cada usuario guarda, lee y quita los suyos", async () => {
+    await assertSucceeds(setDoc(fav("autorA", "21000693"), { codigo: "21000693", fecha: serverTimestamp() }));
+    await assertSucceeds(getDoc(fav("autorA", "21000693")));
+    await assertSucceeds(getDocs(collection(usuario("autorA"), "usuarios/autorA/favoritos")));
+    await assertSucceeds(deleteDoc(fav("autorA", "21000693")));
+  });
+
+  test("nadie lee ni toca los favoritos de otro, ni sin sesión", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "usuarios/autorA/favoritos/21000693"), { codigo: "21000693", fecha: new Date() });
+    });
+    await assertFails(getDoc(doc(usuario("autorB"), "usuarios/autorA/favoritos/21000693")));
+    await assertFails(getDocs(collection(usuario("autorB"), "usuarios/autorA/favoritos")));
+    await assertFails(deleteDoc(doc(usuario("autorB"), "usuarios/autorA/favoritos/21000693")));
+    await assertFails(setDoc(doc(anonimo(), "usuarios/autorA/favoritos/21000001"), { codigo: "21000001", fecha: serverTimestamp() }));
+  });
+
+  test("el documento es exactamente { codigo, fecha } con el código como id", async () => {
+    await assertFails(setDoc(fav("autorA", "21000693"), { codigo: "21000001", fecha: serverTimestamp() }));
+    await assertFails(setDoc(fav("autorA", "123"), { codigo: "123", fecha: serverTimestamp() }));
+    await assertFails(setDoc(fav("autorA", "21000693"), { codigo: "21000693", fecha: serverTimestamp(), nota: 5 }));
+    await assertFails(setDoc(fav("autorA", "21000693"), { codigo: "21000693", fecha: new Date(2020, 0, 1) }));
+  });
+});
+
 describe("todo lo demás está cerrado", () => {
   test("colecciones desconocidas no se leen ni se escriben", async () => {
-    await assertFails(getDoc(doc(usuario("autorA"), "usuarios/autorA/favoritos/21000693")));
     await assertFails(getDoc(doc(anonimo(), "loquesea/x")));
   });
 
-  test("denuncias: solo las escribe denunciarValoracion; nadie las lee", async () => {
-    await assertFails(setDoc(doc(usuario("autorB"), "denuncias/21000693_autorA_autorB"), { motivo: "INSULTOS" }));
+  test("denuncias: solo las escriben las funciones; las leen solo administradores", async () => {
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "denuncias/21000693_autorA_autorB"), { motivo: "INSULTOS", estado: "PENDIENTE" });
+    });
+    const admin = env.authenticatedContext("admin1", { admin: true }).firestore();
+    await assertFails(setDoc(doc(usuario("autorB"), "denuncias/21000693_autorA_autorC"), { motivo: "INSULTOS" }));
     await assertFails(getDoc(doc(usuario("autorB"), "denuncias/21000693_autorA_autorB")));
     await assertFails(getDocs(collection(usuario("autorA"), "denuncias")));
+    await assertSucceeds(getDocs(query(collection(admin, "denuncias"), where("estado", "==", "PENDIENTE"))));
+    await assertFails(updateDoc(doc(admin, "denuncias/21000693_autorA_autorB"), { estado: "RESUELTA" }));
   });
 });

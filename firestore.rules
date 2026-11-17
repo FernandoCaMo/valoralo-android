@@ -71,6 +71,30 @@ service cloud.firestore {
                 && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']));
       // Account deletion (Google Play / GDPR).
       allow delete: if esPropio();
+
+      // Favourites: only the owner. The document id is the centro code (the app keeps
+      // at most 100; alBorrarUsuario deletes them with the account).
+      match /favoritos/{codigo} {
+        allow read, delete: if esPropio();
+        allow create: if esPropio()
+          && codigo.matches('[0-9]{8}')
+          && request.resource.data.keys().hasOnly(['codigo', 'fecha'])
+          && request.resource.data.codigo == codigo
+          && request.resource.data.fecha == request.time;
+        allow update: if false;
+      }
+    }
+
+    // Moderation panel: administrators read reviews in any state across centros
+    // (collection-group query on estado == EN_REVISION).
+    match /{ruta=**}/valoraciones/{uid} {
+      allow read: if esAdmin();
+    }
+
+    // Reports: written only by denunciarValoracion / moderarValoracion; administrators read them.
+    match /denuncias/{id} {
+      allow read: if esAdmin();
+      allow write: if false;
     }
 
     // Teacher verification (doc 04). Written only by the functions solicitarVerificacion,
