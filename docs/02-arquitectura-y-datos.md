@@ -89,7 +89,10 @@ lecturas, en paralelo y con "Descargando centros…" y su progreso) si cambia la
 tiene más de 24 horas o si cambia el formato de la caché. Sin red se muestra la caché. El detalle del
 centro y sus reseñas se leen siempre en directo de Firestore.
 
-usuarios/{uid}/favoritos/{codigo}
+usuarios/{uid}/favoritos/{codigo} { codigo, fecha }   // solo el dueño; máx. 100 (lo controla la app)
+// valoraciones: moderacion { decision: APROBADA|OCULTADA|DENUNCIAS_DESCARTADAS, motivo?, motivoTexto? (lo ve el autor),
+//   nota? (interna), fecha, moderadorUid }; la escriben moderarValoracion o tools/moderacion/moderar.py.
+// stats.{grupo}.nProfesorado: reseñas del grupo que valoran algún departamento.
 denuncias/{codigo}_{autorUid}_{denuncianteUid}   // una por usuario y reseña; solo backend
   { centro, valoracionUid, denuncianteUid, motivo: INSULTOS | NOMBRE_PROPIO | DATOS_PERSONALES | FALSA_O_SPAM | OTRO,
     fecha, estado: "PENDIENTE" | "RESUELTA", decision?, resuelta? }
