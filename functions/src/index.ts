@@ -8,7 +8,8 @@
  *                       the user's reviews (each deletion recalculates its centro) and reports.
  *  solicitarVerificacion  callable: teacher verification request (doc 04).
  *  resolverVerificacion   callable, administrators only: approve or reject.
- *  caducarVerificaciones  daily: pending requests older than 30 days expire.
+ *  caducarVerificaciones  daily (europe-west1): pending requests older than 30 days expire.
+ *  moderarValoracion      callable, administrators only: approve, hide or dismiss reports.
  */
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -23,6 +24,7 @@ import { onDocumentDeleted, onDocumentWritten } from "firebase-functions/v2/fire
 import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineBoolean } from "firebase-functions/params";
 import { calcularStats, Rol, ValoracionParaStats } from "./calculo";
+import { cambiosModeracion, ErrorModeracion, validarModeracion } from "./moderacion";
 import { construirValoracion, ErrorFiltro, PerfilAutor, ValoracionGuardada } from "./publicacion";
 import { ErrorValidacion, validarFormulario } from "./validacion";
 
@@ -161,6 +163,39 @@ export const denunciarValoracion = onCall(async (request) => {
   return { denuncias: total };
 });
 
+// ---------- Moderación (panel de administración) ----------
+
+/** Administrators only. Same transitions as tools/moderacion/moderar.py (src/moderacion.ts). */
+export const moderarValoracion = onCall(async (request) => {
+  const moderadorUid = comprobarLlamada(request);
+  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  let m;
+  try {
+    m = validarModeracion(request.data);
+  } catch (e) {
+    if (e instanceof ErrorModeracion) throw new HttpsError("invalid-argument", e.message);
+    throw e;
+  }
+  const ref = db().doc(`centros/${m.codigo}/valoraciones/${m.uid}`);
+  const pendientes = db().collection("denuncias")
+    .where("centro", "==", m.codigo).where("valoracionUid", "==", m.uid).where("estado", "==", "PENDIENTE");
+  return db().runTransaction(async (tx) => {
+    const v = await tx.get(ref);
+    if (!v.exists) throw new HttpsError("not-found", "Esa reseña ya no existe.");
+    const denuncias = await tx.get(pendientes);
+    let cambios;
+    try {
+      cambios = cambiosModeracion(v.get("estado"), m.accion, m.motivo, m.nota, moderadorUid, new Date());
+    } catch (e) {
+      if (e instanceof ErrorModeracion) throw new HttpsError("failed-precondition", e.message);
+      throw e;
+    }
+    tx.update(ref, cambios.valoracion);
+    denuncias.docs.forEach((d) => tx.update(d.ref, cambios.denuncias));
+    return { estado: cambios.valoracion.estado ?? v.get("estado"), denunciasResueltas: denuncias.size };
+  });
+});
+
 // ---------- Recalcular notas ----------
 
 export async function recalcularCentro(codigo: string): Promise<void> {
@@ -256,5 +291,7 @@ export const alBorrarUsuario = onDocumentDeleted("usuarios/{uid}", async (event)
   valoraciones.docs.forEach((d) => lote.delete(d.ref));
   denuncias.docs.forEach((d) => lote.delete(d.ref));
   await lote.close();
+  // Subcollections are not deleted with their parent document.
+  await db().recursiveDelete(db().collection(`usuarios/${uid}/favoritos`));
   logger.info("Cuenta eliminada: datos borrados", { uid, valoraciones: valoraciones.size, denuncias: denuncias.size });
 });

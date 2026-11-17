@@ -18,6 +18,8 @@ export interface ValoracionParaStats {
 
 export interface StatsGrupo {
   n: number;
+  /** Reviews of the group that rate at least one department (the profesorado average uses only these). */
+  nProfesorado: number;
   global: number | null;
   centro: number | null;
   instalaciones: number | null;
@@ -54,6 +56,7 @@ function grupo(valoraciones: ValoracionParaStats[]): StatsGrupo {
   }
   return {
     n: valoraciones.length,
+    nProfesorado: profesorado.filter((p) => p !== null).length,
     global: media(global),
     centro: media(valoraciones.map((v) => v.centro.nota)),
     instalaciones: media(valoraciones.map((v) => v.instalaciones.nota)),

@@ -84,17 +84,22 @@ export function construirValoracion(
   const filtro = filtrar(formulario, contexto);
   if (filtro.resultado === "BLOQUEADO") throw new ErrorFiltro(filtro.fragmentos);
 
+  // A review a moderator hid, or one held because of reports, only goes back to public through
+  // a moderator: editing it sends it to review even if the new text passes (or is doubtful).
+  // Only reviews held by the filter alone are published automatically once corrected.
+  const origenModeracion: OrigenRevision | null =
+    previa?.estado === "OCULTA" ? "MODERACION"
+      : previa?.estado === "EN_REVISION" && previa.revision && previa.revision.origen !== "FILTRO" ? previa.revision.origen
+        : null;
+
   let estado: Estado = "PUBLICADA";
   let revision: Revision | null = null;
-  if (filtro.resultado === "DUDOSO") {
+  if (origenModeracion) {
+    estado = "EN_REVISION";
+    revision = { origen: origenModeracion, fragmentos: filtro.fragmentos };
+  } else if (filtro.resultado === "DUDOSO") {
     estado = "EN_REVISION";
     revision = { origen: "FILTRO", fragmentos: filtro.fragmentos };
-  } else if (previa?.estado === "OCULTA") {
-    estado = "EN_REVISION";
-    revision = { origen: "MODERACION", fragmentos: [] };
-  } else if (previa?.estado === "EN_REVISION" && previa.revision && previa.revision.origen !== "FILTRO") {
-    estado = "EN_REVISION";
-    revision = previa.revision;
   }
 
   const rol = previa ? { rolAutor: previa.rolAutor, verificado: previa.verificado } : rolDeAutor(perfil);

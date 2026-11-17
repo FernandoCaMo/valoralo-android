@@ -15,7 +15,7 @@ const v = (
   profesorado: Object.entries(deptos).map(([departamento, nota]) => ({ departamento, nota })),
 });
 
-const vacio = { n: 0, global: null, centro: null, instalaciones: null, profesorado: null, porDepartamento: {} };
+const vacio = { n: 0, nProfesorado: 0, global: null, centro: null, instalaciones: null, profesorado: null, porDepartamento: {} };
 
 describe("calcularStats (doc 02, Cálculo de las notas)", () => {
   test("sin valoraciones, todo vacío", () => {
@@ -30,16 +30,16 @@ describe("calcularStats (doc 02, Cálculo de las notas)", () => {
       v("OTRO", 1, 1, {}, "OCULTA"),
     ]);
     expect(stats.docente).toEqual({
-      n: 1, global: 4, centro: 5, instalaciones: 3, profesorado: 4,
+      n: 1, nProfesorado: 1, global: 4, centro: 5, instalaciones: 3, profesorado: 4,
       porDepartamento: { Matemáticas: { n: 1, media: 5 }, Lengua: { n: 1, media: 3 } },
     });
     expect(stats.estudiante).toEqual({
-      n: 1, global: 2.5, centro: 3, instalaciones: 2, profesorado: null, porDepartamento: {},
+      n: 1, nProfesorado: 0, global: 2.5, centro: 3, instalaciones: 2, profesorado: null, porDepartamento: {},
     });
     expect(stats.otro).toEqual(vacio);
-    // profesorado only averages the reviews that have it
+    // profesorado only averages the reviews that have it (nProfesorado counts them)
     expect(stats.total).toEqual({
-      n: 2, global: 3.25, centro: 4, instalaciones: 2.5, profesorado: 4,
+      n: 2, nProfesorado: 1, global: 3.25, centro: 4, instalaciones: 2.5, profesorado: 4,
       porDepartamento: { Matemáticas: { n: 1, media: 5 }, Lengua: { n: 1, media: 3 } },
     });
   });

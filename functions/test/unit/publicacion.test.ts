@@ -65,6 +65,38 @@ describe("construirValoracion", () => {
     expect(v).toMatchObject({ estado: "PUBLICADA", revision: null });
   });
 
+  describe("reseñas que ha ocultado un moderador", () => {
+    const oculta = previa({ estado: "OCULTA", revision: { origen: "FILTRO", fragmentos: [] } });
+
+    test("al editarla con texto limpio vuelve a EN_REVISION, no se publica", () => {
+      expect(construirValoracion(formulario("Texto corregido."), perfil(), oculta, ahora, contexto))
+        .toMatchObject({ estado: "EN_REVISION", revision: { origen: "MODERACION", fragmentos: [] } });
+    });
+
+    test("si además el texto nuevo es dudoso, el origen sigue siendo MODERACION (con los fragmentos)", () => {
+      const v = construirValoracion(formulario("juan explica fatal"), perfil(), oculta, ahora, contexto);
+      expect(v.estado).toBe("EN_REVISION");
+      expect(v.revision).toMatchObject({ origen: "MODERACION", fragmentos: [{ texto: "juan" }] });
+    });
+
+    test("y una segunda edición limpia tampoco la publica sola", () => {
+      const primera = construirValoracion(formulario("juan explica fatal"), perfil(), oculta, ahora, contexto);
+      const segunda = construirValoracion(formulario("Explican fatal."), perfil(), previa(primera), ahora, contexto);
+      expect(segunda).toMatchObject({ estado: "EN_REVISION", revision: { origen: "MODERACION" } });
+    });
+
+    test("en cambio, una retenida solo por el filtro se publica al corregirla", () => {
+      const retenida = construirValoracion(formulario("juan explica fatal"), perfil(), null, ahora, contexto);
+      expect(retenida.revision?.origen).toBe("FILTRO");
+      expect(construirValoracion(formulario("Explican fatal."), perfil(), previa(retenida), ahora, contexto).estado).toBe("PUBLICADA");
+    });
+
+    test("una retenida por denuncias tampoco se publica sola, ni aunque el texto nuevo sea dudoso", () => {
+      const denunciada = previa({ estado: "EN_REVISION", revision: { origen: "DENUNCIAS", fragmentos: [] } });
+      expect(construirValoracion(formulario("juan explica fatal"), perfil(), denunciada, ahora, contexto).revision?.origen).toBe("DENUNCIAS");
+    });
+  });
+
   test("si estaba en revisión por denuncias o la ocultó un moderador, editar no la publica", () => {
     const porDenuncias = construirValoracion(formulario(), perfil(),
       previa({ estado: "EN_REVISION", revision: { origen: "DENUNCIAS", fragmentos: [] } }), ahora, contexto);

@@ -1,0 +1,47 @@
+{
+  "descripcion": "Transiciones de moderación. Las usan los tests de functions/src/moderacion y de tools/moderacion/moderar.py para que el panel y el script dejen la misma constancia. 'fecha' y 'moderadorUid' se añaden siempre y no se comparan aquí.",
+  "motivos": {
+    "NOMBRE_PERSONA": "Contiene el nombre de una persona",
+    "INSULTOS": "Insultos o lenguaje ofensivo",
+    "DATOS_PERSONALES": "Datos personales",
+    "NO_TRATA_DEL_CENTRO": "No trata sobre el centro",
+    "OTRO": "Otro"
+  },
+  "casos": [
+    {
+      "nombre": "aprobar una en revisión la publica y quita la revisión",
+      "estado": "EN_REVISION", "accion": "APROBAR", "motivo": null, "nota": "Era un apellido del centro.",
+      "valoracion": { "estado": "PUBLICADA", "revision": null,
+        "moderacion": { "decision": "APROBADA", "motivo": null, "motivoTexto": null, "nota": "Era un apellido del centro." } },
+      "denuncias": "APROBADA"
+    },
+    {
+      "nombre": "ocultar una en revisión, con motivo visible para el autor",
+      "estado": "EN_REVISION", "accion": "OCULTAR", "motivo": "NOMBRE_PERSONA", "nota": null,
+      "valoracion": { "estado": "OCULTA",
+        "moderacion": { "decision": "OCULTADA", "motivo": "NOMBRE_PERSONA", "motivoTexto": "Contiene el nombre de una persona", "nota": null } },
+      "denuncias": "OCULTADA"
+    },
+    {
+      "nombre": "ocultar una publicada que tiene denuncias",
+      "estado": "PUBLICADA", "accion": "OCULTAR", "motivo": "INSULTOS", "nota": "Dos denuncias, insulto claro.",
+      "valoracion": { "estado": "OCULTA",
+        "moderacion": { "decision": "OCULTADA", "motivo": "INSULTOS", "motivoTexto": "Insultos o lenguaje ofensivo", "nota": "Dos denuncias, insulto claro." } },
+      "denuncias": "OCULTADA"
+    },
+    {
+      "nombre": "descartar las denuncias de una publicada: sigue publicada",
+      "estado": "PUBLICADA", "accion": "DESCARTAR_DENUNCIAS", "motivo": null, "nota": null,
+      "valoracion": {
+        "moderacion": { "decision": "DENUNCIAS_DESCARTADAS", "motivo": null, "motivoTexto": null, "nota": null } },
+      "denuncias": "DESCARTADA"
+    },
+    { "nombre": "ocultar sin motivo", "estado": "EN_REVISION", "accion": "OCULTAR", "motivo": null, "nota": null, "error": true },
+    { "nombre": "motivo desconocido", "estado": "EN_REVISION", "accion": "OCULTAR", "motivo": "PORQUE_SI", "nota": null, "error": true },
+    { "nombre": "aprobar una que ya está publicada", "estado": "PUBLICADA", "accion": "APROBAR", "motivo": null, "nota": null, "error": true },
+    { "nombre": "descartar denuncias de una en revisión (hay que aprobarla u ocultarla)", "estado": "EN_REVISION", "accion": "DESCARTAR_DENUNCIAS", "motivo": null, "nota": null, "error": true },
+    { "nombre": "moderar una ya oculta", "estado": "OCULTA", "accion": "OCULTAR", "motivo": "OTRO", "nota": null, "error": true },
+    { "nombre": "acción desconocida", "estado": "EN_REVISION", "accion": "BORRAR", "motivo": null, "nota": null, "error": true },
+    { "nombre": "nota interna demasiado larga", "estado": "EN_REVISION", "accion": "APROBAR", "motivo": null, "nota": "LARGA_501", "error": true }
+  ]
+}
