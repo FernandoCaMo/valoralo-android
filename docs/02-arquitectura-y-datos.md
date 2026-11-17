@@ -84,15 +84,22 @@ catalogo/{provincia}-{parte}                  // catálogo resumido para Inicio 
 config/departamentos { porTipo: { "IES": [...], ... } }   // listas estándar por tipo
 
 destacadas/actual   // reseñas destacadas de Inicio (lectura pública; solo backend). Abrir Inicio = 1 lectura.
-  { resenas: [{ clave (huella de centro + autor, sin uid), codigo, nombre, municipio, tipo, alias, rolAutor,
-      verificado, nota (de esa reseña), extracto (~200 caracteres), fecha }],
+  { resenas: [{ clave (huella de centro + autor), codigo, autorUid (id de la reseña, para dar like), nombre,
+      municipio, tipo, alias, rolAutor, verificado, nota (de esa reseña), nLikes, extracto (~200 caracteres), fecha }],
     minimoParaMostrar, generada }
-  // La calcula calcularDestacadas (cada día, 05:00, europe-west1) o recalcularDestacadas (botón del panel).
+  // La calcula calcularDestacadas (cada hora, europe-west1) o recalcularDestacadas (botón del panel).
   // alEscribirValoracion y denunciarValoracion retiran al momento una destacada que se oculta, se edita,
   // se borra o se denuncia.
 config/destacadas   // números de la selección; si falta un campo o no es válido, se usa el valor por defecto
   { minCaracteres: 120, maxDias: 180, maxResenas: 12, maxFraccionAltas: 0.333, umbralAlta: 4.5,
-    umbralBaja: 3.5, minimoParaMostrar: 3, longitudExtracto: 200 }
+    umbralBaja: 3.5, minimoParaMostrar: 3, longitudExtracto: 200,
+    diasLikes: 7, huecosNuevas: 3, diasNueva: 3, maxLikesNueva: 2 }
+
+centros/{codigo}/valoraciones/{autorUid}/likes/{uid} { uid, codigo, fecha }   // uno por usuario y reseña
+  // Lo escribe la app; las reglas exigen: tu uid, reseña PUBLICADA y no tuya, fecha del servidor y
+  // el contador por hora en la misma escritura. nLikes de la reseña: solo alCambiarLike (recuenta).
+usuarios/{uid}/limites/likes { inicio, n }   // likes de la hora en curso; +1 o empieza una hora nueva
+config/likes { maxPorHora: 60 }               // lo leen las reglas (60 si no existe)
   // Se cambia desde la consola de Firebase, sin desplegar; el cambio vale desde el siguiente cálculo.
 
 Pestañas: Inicio (logo, carrusel de destacadas, "Buscar un centro" y, con sesión, 3 favoritos) ·

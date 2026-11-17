@@ -13,6 +13,12 @@ import com.valoralo.domain.model.Sesion
 import com.valoralo.domain.model.StatsDepartamento
 import com.valoralo.domain.model.StatsGrupo
 import com.valoralo.domain.model.Valoracion
+import com.valoralo.data.likes.ClaveResena
+import com.valoralo.data.likes.LikesRepository
+import com.valoralo.domain.usecase.EstadoLike
+import com.valoralo.domain.usecase.OrdenResenas
+import com.valoralo.domain.usecase.ordenadas
+import com.valoralo.ui.components.ControlLikes
 import com.valoralo.domain.usecase.FiltroRol
 import com.valoralo.domain.usecase.filtrarPor
 import com.valoralo.domain.usecase.para
@@ -45,6 +51,9 @@ sealed interface DetailUiState {
         val miValoracion: Valoracion? = null,
         /** uid of the signed-in user with a complete profile (null = can't review or report). */
         val uidActual: String? = null,
+        val orden: OrdenResenas = OrdenResenas.RECIENTES,
+        /** Heart of each review by author uid (others' and my own). */
+        val likes: Map<String, EstadoLike> = emptyMap(),
     ) : DetailUiState
 }
 
@@ -54,10 +63,14 @@ class DetailViewModel @Inject constructor(
     repository: CentroRepository,
     cuentas: CuentaRepository,
     private val valoraciones: ValoracionRepository,
+    likesRepo: LikesRepository,
 ) : ViewModel() {
 
     private val codigo: String = checkNotNull(savedStateHandle[ARG_CODIGO])
     private val filtroRol = MutableStateFlow(FiltroRol.TODOS)
+    private val orden = MutableStateFlow(OrdenResenas.RECIENTES)
+    val likes = ControlLikes(viewModelScope, likesRepo)
+    private val misLikes = likesRepo.misLikes(listOf(codigo)).onStart { emit(emptySet()) }
     private val _aviso = MutableStateFlow<String?>(null)
     /** One-off messages (report sent, errors). */
     val aviso: StateFlow<String?> = _aviso.asStateFlow()
@@ -73,26 +86,43 @@ class DetailViewModel @Inject constructor(
         valoraciones.observarMiValoracion(codigo).onStart { emit(null) },
     ) { sesion, mia -> (sesion as? Sesion.Iniciada)?.takeIf { it.perfil != null }?.uid to mia }
 
-    val uiState: StateFlow<DetailUiState> = combine(base, usuario) { (centro, resenas, filtro), (uid, mia) ->
+    val uiState: StateFlow<DetailUiState> = combine(
+        base, usuario, misLikes, likes.ajustes, orden,
+    ) { (centro, resenas, filtro), (uid, mia), mios, ajustes, orden ->
         if (centro == null) {
             DetailUiState.NoEncontrado
         } else {
             val notas = centro.stats.para(filtro)
+            val todas = resenas + listOfNotNull(mia)
+            likes.podar(todas.associate { ClaveResena(codigo, it.uid) to it.nLikes })
             DetailUiState.Listo(
                 centro = centro,
                 filtroRol = filtro,
                 notas = notas,
                 departamentos = notas.porDepartamento.toList()
                     .sortedWith(compareByDescending<Pair<String, StatsDepartamento>> { it.second.media }.thenBy { it.first }),
-                resenas = resenas.filterNot { it.uid == uid }.filtrarPor(filtro),
+                resenas = resenas.filterNot { it.uid == uid }.filtrarPor(filtro).ordenadas(orden),
                 miValoracion = mia,
                 uidActual = uid,
+                orden = orden,
+                likes = todas.associate { v ->
+                    val clave = ClaveResena(codigo, v.uid)
+                    v.uid to likes.estado(clave, v.nLikes, clave in mios, ajustes)
+                },
             )
         }
     }.catch { emit(DetailUiState.Error) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailUiState.Cargando)
 
     fun onFiltroRolChange(filtro: FiltroRol) = filtroRol.update { filtro }
+
+    fun onOrdenChange(nuevo: OrdenResenas) = orden.update { nuevo }
+
+    /** [v] is someone else's published review. */
+    fun alternarLike(v: Valoracion) {
+        val estado = (uiState.value as? DetailUiState.Listo) ?: return
+        likes.alternar(ClaveResena(codigo, v.uid), v.nLikes, estado.likes[v.uid]?.let { it.dado } ?: false)
+    }
 
     fun denunciar(autorUid: String, motivo: MotivoDenuncia) {
         viewModelScope.launch {

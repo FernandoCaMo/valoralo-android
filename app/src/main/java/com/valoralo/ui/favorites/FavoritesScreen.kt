@@ -9,7 +9,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -78,9 +78,9 @@ fun FavoritesScreen(
             val guardados = centrosEnOrden(centros.orEmpty(), codigos)
             if (guardados.isEmpty()) {
                 PantallaPendiente(
-                    icono = Icons.Outlined.FavoriteBorder,
+                    icono = Icons.Outlined.BookmarkBorder,
                     titulo = "Aún no tienes favoritos",
-                    texto = "Pulsa el corazón de un centro para guardarlo aquí.",
+                    texto = "Pulsa el marcador de un centro para guardarlo aquí.",
                 )
             } else {
                 LazyColumn(

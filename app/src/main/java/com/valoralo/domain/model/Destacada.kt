@@ -15,6 +15,10 @@ data class Destacada(
     val nota: Double,
     val extracto: String,
     val fecha: LocalDate?,
+    /** Id of the review (= its author's uid, already public as the document id), to like it. Null in old data. */
+    val autorUid: String? = null,
+    /** Likes when destacadas/actual was last calculated (at most an hour ago). */
+    val nLikes: Int = 0,
 )
 
 data class Destacadas(

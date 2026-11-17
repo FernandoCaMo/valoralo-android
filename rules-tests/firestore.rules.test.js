@@ -1,4 +1,4 @@
-﻿// Tests of firestore.rules. Run from rules-tests/:  npm test
+// Tests of firestore.rules. Run from rules-tests/:  npm test
 // (starts the Firestore emulator, runs the tests and stops it).
 import { after, before, beforeEach, describe, test } from "node:test";
 import { readFileSync } from "node:fs";

@@ -2,11 +2,11 @@ package com.valoralo.ui.navigation
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.outlined.AccountCircle
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -41,6 +41,6 @@ enum class Pestana(
 ) {
     INICIO(Rutas.HOME, "Inicio", Icons.Outlined.Home, Icons.Filled.Home),
     BUSCAR(Rutas.SEARCH, "Buscar", Icons.Outlined.Search, Icons.Filled.Search),
-    FAVORITOS(Rutas.FAVORITOS, "Favoritos", Icons.Outlined.FavoriteBorder, Icons.Filled.Favorite),
+    FAVORITOS(Rutas.FAVORITOS, "Favoritos", Icons.Outlined.BookmarkBorder, Icons.Filled.Bookmark),
     CUENTA(Rutas.CUENTA, "Mi cuenta", Icons.Outlined.AccountCircle, Icons.Filled.AccountCircle),
 }

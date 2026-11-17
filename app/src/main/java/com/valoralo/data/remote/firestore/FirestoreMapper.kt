@@ -126,6 +126,7 @@ fun Map<String, Any?>.aValoracion(id: String): Valoracion? {
         texto = texto("texto"),
         estado = enumONull<EstadoValoracion>(get("estado")) ?: EstadoValoracion.EN_REVISION,
         motivoModeracion = (get("moderacion") as? Map<*, *>)?.get("motivoTexto") as? String,
+        nLikes = entero("nLikes") ?: 0,
         revision = (get("revision") as? Map<*, *>)?.let { r ->
             val origen = enumONull<OrigenRevision>(r["origen"]) ?: return@let null
             Revision(origen, aFragmentos(r["fragmentos"]))
@@ -180,6 +181,8 @@ fun Map<String, Any?>.aDestacadas(): Destacadas = Destacadas(
             nota = nota,
             extracto = extracto,
             fecha = fecha(r["fecha"]),
+            autorUid = r.textoONull("autorUid"),
+            nLikes = r.entero("nLikes") ?: 0,
         )
     },
     minimoParaMostrar = entero("minimoParaMostrar") ?: Destacadas().minimoParaMostrar,

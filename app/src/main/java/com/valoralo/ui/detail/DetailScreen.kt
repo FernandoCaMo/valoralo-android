@@ -1,4 +1,4 @@
-﻿package com.valoralo.ui.detail
+package com.valoralo.ui.detail
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -6,6 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import com.valoralo.ui.components.FotoCentro
+import com.valoralo.ui.components.EventoAccion
+import com.valoralo.domain.usecase.EstadoLike
+import com.valoralo.domain.usecase.OrdenResenas
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -83,7 +88,7 @@ import com.valoralo.ui.components.ubicacion
 fun DetailScreen(
     onVolver: () -> Unit,
     onAnadirValoracion: (Centro) -> Unit,
-    onIniciarSesion: () -> Unit,
+    onIniciarSesion: (mensaje: String) -> Unit,
     onAviso: (String) -> Unit,
     acciones: AccionesCentroViewModel,
     viewModel: DetailViewModel = hiltViewModel(),
@@ -95,10 +100,20 @@ fun DetailScreen(
     LaunchedEffect(aviso) {
         aviso?.let { onAviso(it); viewModel.avisoMostrado() }
     }
+    LaunchedEffect(viewModel) {
+        viewModel.likes.eventos.collect { e ->
+            when (e) {
+                is EventoAccion.Aviso -> onAviso(e.texto)
+                is EventoAccion.IniciarSesion -> onIniciarSesion(e.mensaje)
+            }
+        }
+    }
     DetailContent(
         state, onVolver, onAnadirValoracion, viewModel::onFiltroRolChange,
         onDenunciar = { autor, motivo -> viewModel.denunciar(autor, motivo) },
-        onIniciarSesion = onIniciarSesion,
+        onIniciarSesion = { onIniciarSesion("Inicia sesión para denunciar una reseña.") },
+        onOrdenChange = viewModel::onOrdenChange,
+        onLike = viewModel::alternarLike,
         accionesBarra = { centro ->
             BotonFavorito(centro.codigo in favoritos.orEmpty(), centro.nombre) { acciones.alternarFavorito(centro.codigo) }
             val comparando = centro.codigo in seleccion
@@ -122,6 +137,8 @@ private fun DetailContent(
     onFiltroRolChange: (FiltroRol) -> Unit,
     onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
     onIniciarSesion: () -> Unit,
+    onOrdenChange: (OrdenResenas) -> Unit,
+    onLike: (Valoracion) -> Unit,
     accionesBarra: @Composable (Centro) -> Unit,
 ) {
     Scaffold(
@@ -160,7 +177,7 @@ private fun DetailContent(
             DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
                 Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
             }
-            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion)
+            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike)
         }
     }
 }
@@ -172,6 +189,8 @@ private fun DetailLista(
     padding: PaddingValues,
     onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
     onIniciarSesion: () -> Unit,
+    onOrdenChange: (OrdenResenas) -> Unit,
+    onLike: (Valoracion) -> Unit,
 ) {
     val centro = state.centro
     var denunciando by remember { mutableStateOf<Valoracion?>(null) }
@@ -200,9 +219,21 @@ private fun DetailLista(
         }
         state.miValoracion?.let { mia ->
             item { Titulo("Tu valoración") }
-            item(key = "mia") { TarjetaResena(mia, etiquetaEstado = mia.etiquetaParaElAutor()) }
+            item(key = "mia") {
+                TarjetaResena(
+                    mia,
+                    etiquetaEstado = mia.etiquetaParaElAutor(),
+                    like = state.likes[mia.uid] ?: EstadoLike(false, mia.nLikes),
+                )
+            }
         }
-        item { Titulo("Reseñas") }
+        item {
+            Titulo("Reseñas")
+            if (state.resenas.size > 1) {
+                Spacer(Modifier.height(8.dp))
+                SelectorOrden(state.orden, onOrdenChange)
+            }
+        }
         if (state.resenas.isEmpty()) {
             item {
                 Text(
@@ -212,9 +243,12 @@ private fun DetailLista(
             }
         } else {
             items(state.resenas, key = { it.uid }) { v ->
-                TarjetaResena(v, onDenunciar = {
-                    if (state.uidActual == null) onIniciarSesion() else denunciando = v
-                })
+                TarjetaResena(
+                    v,
+                    onDenunciar = { if (state.uidActual == null) onIniciarSesion() else denunciando = v },
+                    like = state.likes[v.uid] ?: EstadoLike(false, v.nLikes),
+                    onLike = { onLike(v) },
+                )
             }
         }
     }
@@ -384,6 +418,16 @@ private fun Seccion(titulo: String, contenido: @Composable () -> Unit) {
 @Composable
 private fun Titulo(texto: String) {
     Text(texto, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SelectorOrden(orden: OrdenResenas, onChange: (OrdenResenas) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OrdenResenas.entries.forEach { o ->
+            FilterChip(selected = o == orden, onClick = { onChange(o) }, label = { Text(o.etiqueta) })
+        }
+    }
 }
 
 private fun FiltroRol.etiqueta(): String = when (this) {

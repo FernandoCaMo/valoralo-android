@@ -26,6 +26,8 @@ data class Valoracion(
     val revision: Revision? = null,
     /** Reason shown to the author when a moderator hides the review. */
     val motivoModeracion: String? = null,
+    /** Written only by the backend (alCambiarLike). */
+    val nLikes: Int = 0,
 ) {
     /** Shows the "Docente verificado" badge. */
     val esDocenteVerificado: Boolean get() = rolAutor == Rol.DOCENTE && verificado

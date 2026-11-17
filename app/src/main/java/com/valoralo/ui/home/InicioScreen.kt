@@ -71,6 +71,10 @@ import com.valoralo.domain.model.Destacada
 import com.valoralo.domain.model.Rol
 import com.valoralo.domain.usecase.formatearNota
 import com.valoralo.ui.components.AccionesCentroViewModel
+import com.valoralo.data.likes.ClaveResena
+import com.valoralo.domain.usecase.EstadoLike
+import com.valoralo.ui.components.BotonLike
+import com.valoralo.ui.components.EventoAccion
 import com.valoralo.ui.components.IlustracionCentro
 import com.valoralo.ui.components.LogoValoralo
 import com.valoralo.ui.components.TarjetaCentro
@@ -90,9 +94,20 @@ fun InicioScreen(
     onVerCentro: (String) -> Unit,
     onBuscar: () -> Unit,
     onVerFavoritos: () -> Unit,
+    onIniciarSesion: (mensaje: String) -> Unit,
+    onAviso: (String) -> Unit,
     viewModel: InicioViewModel = hiltViewModel(),
 ) {
     val destacadas by viewModel.destacadas.collectAsStateWithLifecycle()
+    val corazones by viewModel.corazones.collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel) {
+        viewModel.likes.eventos.collect { e ->
+            when (e) {
+                is EventoAccion.Aviso -> onAviso(e.texto)
+                is EventoAccion.IniciarSesion -> onIniciarSesion(e.mensaje)
+            }
+        }
+    }
     val catalogo by viewModel.catalogo.collectAsStateWithLifecycle()
     val favoritos by acciones.favoritos.collectAsStateWithLifecycle()
     val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
@@ -108,7 +123,7 @@ fun InicioScreen(
             val d = destacadas
             when {
                 d == null -> Box(Modifier.fillMaxWidth().height(ALTO_TARJETA), Alignment.Center) { CircularProgressIndicator() }
-                d.mostrarCarrusel -> Carrusel(d.resenas, onVerCentro)
+                d.mostrarCarrusel -> Carrusel(d.resenas, corazones, viewModel::alternarLike, onVerCentro)
                 else -> Bienvenida()
             }
         }
@@ -130,7 +145,7 @@ fun InicioScreen(
             if (mios.isEmpty()) {
                 item {
                     Text(
-                        "Pulsa el corazón de un centro para tenerlo aquí.",
+                        "Pulsa el marcador de un centro para tenerlo aquí.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
@@ -182,7 +197,12 @@ private fun lectorDePantalla(context: Context): Boolean =
     (context.getSystemService(Context.ACCESSIBILITY_SERVICE) as? AccessibilityManager)?.isTouchExplorationEnabled == true
 
 @Composable
-private fun Carrusel(resenas: List<Destacada>, onVerCentro: (String) -> Unit) {
+private fun Carrusel(
+    resenas: List<Destacada>,
+    corazones: Map<ClaveResena, LikeDestacada>,
+    onLike: (Destacada) -> Unit,
+    onVerCentro: (String) -> Unit,
+) {
     val n = resenas.size
     val pager = rememberPagerState(initialPage = paginaInicial(n)) { paginasVirtuales(n) }
     val scope = rememberCoroutineScope()
@@ -218,7 +238,8 @@ private fun Carrusel(resenas: List<Destacada>, onVerCentro: (String) -> Unit) {
                 }
             },
         ) { pagina ->
-            TarjetaDestacada(resenas[resenaDePagina(pagina, n)]) { onVerCentro(it) }
+            val r = resenas[resenaDePagina(pagina, n)]
+            TarjetaDestacada(r, r.clave()?.let { corazones[it] }, { onLike(r) }) { onVerCentro(it) }
         }
         Controles(pager, n,
             onAnterior = { tocado = true; scope.launch { pager.animateScrollToPage(pager.currentPage - 1) } },
@@ -253,7 +274,7 @@ private fun Controles(pager: PagerState, n: Int, onAnterior: () -> Unit, onSigui
 }
 
 @Composable
-private fun TarjetaDestacada(r: Destacada, onVerCentro: (String) -> Unit) {
+private fun TarjetaDestacada(r: Destacada, corazon: LikeDestacada?, onLike: () -> Unit, onVerCentro: (String) -> Unit) {
     val rol = when (r.rol) {
         Rol.DOCENTE -> if (r.verificado) "Docente verificado" else "Docente"
         Rol.ESTUDIANTE -> "Estudiante"
@@ -300,6 +321,10 @@ private fun TarjetaDestacada(r: Destacada, onVerCentro: (String) -> Unit) {
                         textAlign = TextAlign.End,
                     )
                 }
+                Spacer(Modifier.weight(1f))
+                // Old data without the review id: only the number.
+                val estado = corazon?.estado ?: EstadoLike(dado = false, n = r.nLikes)
+                BotonLike(estado, if (corazon == null || corazon.propia) null else onLike)
             }
         }
     }

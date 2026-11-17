@@ -17,7 +17,7 @@ import javax.inject.Inject
 
 sealed interface EventoAccion {
     data class Aviso(val texto: String) : EventoAccion
-    data object IniciarSesion : EventoAccion
+    data class IniciarSesion(val mensaje: String = "Inicia sesión para guardar centros en favoritos.") : EventoAccion
 }
 
 /** Favourite and compare actions, shared by Inicio, Favoritos and the detail (app-level). */
@@ -40,7 +40,7 @@ class AccionesCentroViewModel @Inject constructor(
                 val ahora = favoritosRepo.alternar(codigo)
                 _eventos.emit(EventoAccion.Aviso(if (ahora) "Guardado en favoritos." else "Quitado de favoritos."))
             } catch (e: ExcepcionFavorito) {
-                _eventos.emit(if (e.error == ErrorFavorito.SIN_SESION) EventoAccion.IniciarSesion else EventoAccion.Aviso(e.error.mensaje))
+                _eventos.emit(if (e.error == ErrorFavorito.SIN_SESION) EventoAccion.IniciarSesion() else EventoAccion.Aviso(e.error.mensaje))
             }
         }
     }

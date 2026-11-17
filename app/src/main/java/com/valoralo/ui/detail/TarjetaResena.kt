@@ -28,6 +28,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.valoralo.domain.model.Rol
 import com.valoralo.domain.model.Valoracion
+import com.valoralo.domain.usecase.EstadoLike
+import com.valoralo.ui.components.BotonLike
 import com.valoralo.ui.components.Estrellas
 import java.time.format.DateTimeFormatter
 
@@ -43,6 +45,9 @@ fun TarjetaResena(
     modifier: Modifier = Modifier,
     onDenunciar: (() -> Unit)? = null,
     etiquetaEstado: String? = null,
+    /** What the heart shows; [onLike] null = own review (only the number). */
+    like: EstadoLike = EstadoLike(dado = false, n = valoracion.nLikes),
+    onLike: (() -> Unit)? = null,
 ) {
     OutlinedCard(modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
@@ -84,6 +89,7 @@ fun TarjetaResena(
             Spacer(Modifier.height(8.dp))
             Text(valoracion.texto, style = MaterialTheme.typography.bodyMedium)
             Row(verticalAlignment = Alignment.CenterVertically) {
+                BotonLike(like, onLike, Modifier.padding(end = 4.dp))
                 Text(
                     if (valoracion.editada) "(editada)" else "",
                     style = MaterialTheme.typography.bodySmall,

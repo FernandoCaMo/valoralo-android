@@ -1,4 +1,4 @@
-﻿package com.valoralo.ui.components
+package com.valoralo.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedCard
@@ -83,9 +83,9 @@ fun TarjetaCentro(
 fun BotonFavorito(esFavorito: Boolean, nombre: String, onClick: () -> Unit) {
     IconButton(onClick = onClick) {
         Icon(
-            if (esFavorito) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+            if (esFavorito) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
             contentDescription = if (esFavorito) "Quitar $nombre de favoritos" else "Guardar $nombre en favoritos",
-            tint = if (esFavorito) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = if (esFavorito) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }

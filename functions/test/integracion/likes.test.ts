@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Likes against the emulators:  npm run test:integracion
  * The app writes the likes (checked by the rules, see rules-tests/); here they are written
  * with the Admin SDK and we check what the functions do with them.

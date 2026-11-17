@@ -16,7 +16,7 @@ class DestacadasMapperTest {
     private fun resena(codigo: String, rol: String = "DOCENTE") = mapOf(
         "clave" to "abc", "codigo" to codigo, "nombre" to "IES Delgado Hernández", "municipio" to "Bollullos Par del Condado",
         "tipo" to "IES", "alias" to "Profe Mates", "rolAutor" to rol, "verificado" to true, "nota" to 3.7,
-        "extracto" to "Buen ambiente…", "fecha" to fecha,
+        "extracto" to "Buen ambiente…", "fecha" to fecha, "autorUid" to "uidAutor", "nLikes" to 4L,
     )
 
     @Test
@@ -30,6 +30,8 @@ class DestacadasMapperTest {
         assertTrue(r.verificado)
         assertEquals(3.7, r.nota, 0.0)
         assertEquals(LocalDate.of(2026, 11, 2), r.fecha)
+        assertEquals("uidAutor", r.autorUid)
+        assertEquals(4, r.nLikes)
         assertFalse(d.mostrarCarrusel)
     }
 

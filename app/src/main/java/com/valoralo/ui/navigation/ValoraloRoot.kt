@@ -87,8 +87,8 @@ fun ValoraloRoot(
         acciones.eventos.collect { evento ->
             when (evento) {
                 is EventoAccion.Aviso -> avisar(evento.texto)
-                EventoAccion.IniciarSesion -> {
-                    avisar("Inicia sesión para guardar centros en favoritos.")
+                is EventoAccion.IniciarSesion -> {
+                    avisar(evento.mensaje)
                     navController.navigate(Rutas.LOGIN)
                 }
             }
@@ -145,6 +145,11 @@ fun ValoraloRoot(
                     onVerCentro = { navController.navigate(Rutas.centro(it)) },
                     onBuscar = { navController.irAPestana(Pestana.BUSCAR) },
                     onVerFavoritos = { navController.irAPestana(Pestana.FAVORITOS) },
+                    onIniciarSesion = { mensaje ->
+                        avisar(mensaje)
+                        navController.navigate(Rutas.LOGIN)
+                    },
+                    onAviso = ::avisar,
                 )
             }
             composable(Rutas.SEARCH) {
@@ -174,8 +179,8 @@ fun ValoraloRoot(
                             navController.navigate(Rutas.LOGIN)
                         }
                     },
-                    onIniciarSesion = {
-                        avisar("Inicia sesión para denunciar una reseña.")
+                    onIniciarSesion = { mensaje ->
+                        avisar(mensaje)
                         navController.navigate(Rutas.LOGIN)
                     },
                     onAviso = ::avisar,
