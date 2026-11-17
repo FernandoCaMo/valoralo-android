@@ -34,7 +34,14 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // App configuration (e.g. config/departamentos): public read.
+    // Featured reviews for Inicio, written by calcularDestacadas / recalcularDestacadas.
+    // Only alias, role, note, excerpt and date of published reviews; no uid.
+    match /destacadas/{documento} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // App configuration (e.g. config/departamentos, config/destacadas): public read.
     match /config/{documento} {
       allow read: if true;
       allow write: if false;

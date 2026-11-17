@@ -10,6 +10,8 @@
  *  resolverVerificacion   callable, administrators only: approve or reject.
  *  caducarVerificaciones  daily (europe-west1): pending requests older than 30 days expire.
  *  moderarValoracion      callable, administrators only: approve, hide or dismiss reports.
+ *  calcularDestacadas     daily (europe-west1): featured reviews for Inicio (destacadas/actual).
+ *  recalcularDestacadas   callable, administrators only: same, on demand from the panel.
  */
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -25,6 +27,7 @@ import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https
 import { defineBoolean } from "firebase-functions/params";
 import { calcularStats, Rol, ValoracionParaStats } from "./calculo";
 import { cambiosModeracion, ErrorModeracion, validarModeracion } from "./moderacion";
+import { generarDestacadas, retirarDestacada } from "./destacadasOperaciones";
 import { construirValoracion, ErrorFiltro, PerfilAutor, ValoracionGuardada } from "./publicacion";
 import { ErrorValidacion, validarFormulario } from "./validacion";
 
@@ -150,6 +153,8 @@ export const denunciarValoracion = onCall(async (request) => {
     if ((e as { code?: number }).code === 6) throw new HttpsError("already-exists", "Ya has denunciado esta reseña.");
     throw e;
   }
+  // Featured reviews must have no pending reports.
+  await retirarDestacada(db(), codigo, autorUid);
 
   // Only pending reports count: after a moderator approves a review, its reports are resolved.
   const total = (await db().collection("denuncias")
@@ -236,10 +241,37 @@ async function parteDelCatalogo(codigo: string, catalogoDoc: unknown, provincia:
 export const alEscribirValoracion = onDocumentWritten("centros/{codigo}/valoraciones/{uid}", async (event) => {
   const antes = event.data?.before.data();
   const despues = event.data?.after.data();
+  // A featured review that is hidden, edited or deleted leaves Inicio at once.
+  const contenido = (d?: FirebaseFirestore.DocumentData) => d && JSON.stringify([d.estado, d.texto, d.centro, d.instalaciones, d.profesorado]);
+  if (antes?.estado === "PUBLICADA" && contenido(antes) !== contenido(despues)) {
+    if (await retirarDestacada(db(), event.params.codigo, event.params.uid)) {
+      logger.info("Reseña retirada de destacadas", { codigo: event.params.codigo });
+    }
+  }
   // Only what changes the averages matters (e.g. not an alias-only change).
   const relevante = (d?: FirebaseFirestore.DocumentData) => d && JSON.stringify([d.estado, d.rolAutor, d.centro, d.instalaciones, d.profesorado]);
   if (relevante(antes) === relevante(despues)) return;
   await recalcularCentro(event.params.codigo);
+});
+
+// ---------- Reseñas destacadas (Inicio) ----------
+
+/** Daily, after caducarVerificaciones. Numbers in config/destacadas (defaults if missing). */
+export const calcularDestacadas = onSchedule({
+  schedule: "every day 05:00",
+  timeZone: "Europe/Madrid",
+  region: "europe-west1",
+}, async () => {
+  const { n } = await generarDestacadas(db(), new Date());
+  logger.info("Reseñas destacadas calculadas", { n });
+});
+
+/** Administrators only: "Recalcular destacadas ahora" in the panel. */
+export const recalcularDestacadas = onCall(async (request) => {
+  comprobarLlamada(request);
+  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  const { n, config } = await generarDestacadas(db(), new Date());
+  return { n, config };
 });
 
 // ---------- Verificación de docentes (doc 04) ----------

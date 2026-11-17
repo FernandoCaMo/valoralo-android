@@ -17,6 +17,14 @@
         { "fieldPath": "fecha", "order": "DESCENDING" }
       ]
     }
+    ,{
+      "collectionGroup": "valoraciones",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "actualizada", "order": "ASCENDING" }
+      ]
+    }
   ],
   "fieldOverrides": [
     {

@@ -92,7 +92,15 @@ export function agruparDenuncias(denuncias) {
   return [...grupos.values()].sort((a, b) => b.n - a.n);
 }
 
-export const validarNota = (nota) => ((nota ?? "").trim().length > 500 ? "La nota interna puede tener como máximo 500 caracteres." : null);
+/** Result of "Recalcular destacadas ahora", with the numbers in use (config/destacadas). */
+export function textoDestacadas(n, c) {
+  const pct = Math.round(c.maxFraccionAltas * 100);
+  const aviso = n < c.minimoParaMostrar ? ` Son menos de ${c.minimoParaMostrar}: Inicio mostrará el texto de bienvenida.` : "";
+  return `${n} ${n === 1 ? "reseña destacada" : "reseñas destacadas"} (texto ≥ ${c.minCaracteres} caracteres, últimos ${c.maxDias} días, `
+    + `máx. ${c.maxResenas}, hasta un ${pct} % con ${c.umbralAlta} o más).${aviso}`;
+}
+
+export const validarNota =(nota) => ((nota ?? "").trim().length > 500 ? "La nota interna puede tener como máximo 500 caracteres." : null);
 
 /** What the reviewer must check (doc 04). */
 export function comprobaciones(fechaAlta) {

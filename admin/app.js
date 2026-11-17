@@ -12,7 +12,7 @@ import { connectFunctionsEmulator, getFunctions, httpsCallable } from "https://w
 import { connectStorageEmulator, getDownloadURL, getStorage, ref } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import {
   agruparDenuncias, comprobaciones, diasDesde, esAdmin, formatearFecha, MOTIVO_DENUNCIA, MOTIVOS_OCULTAR, ORIGEN_REVISION,
-  segmentos, URL_VERIFICACION_JUNTA, validarCentro, validarMotivo, validarNota,
+  segmentos, textoDestacadas, URL_VERIFICACION_JUNTA, validarCentro, validarMotivo, validarNota,
 } from "./logica.js";
 
 const $ = (id) => document.getElementById(id);
@@ -29,6 +29,7 @@ const storage = getStorage(app);
 const funciones = getFunctions(app, "europe-southwest1");
 const resolverVerificacion = httpsCallable(funciones, "resolverVerificacion");
 const moderarValoracion = httpsCallable(funciones, "moderarValoracion");
+const recalcularDestacadas = httpsCallable(funciones, "recalcularDestacadas");
 
 if (["localhost", "127.0.0.1"].includes(location.hostname)) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
@@ -43,6 +44,21 @@ $("enlace-junta").href = URL_VERIFICACION_JUNTA;
 $("entrar").addEventListener("click", () => signInWithPopup(auth, new GoogleAuthProvider()).catch((e) => error(e.message)));
 $("salir").addEventListener("click", () => signOut(auth));
 $("recargar").addEventListener("click", () => cargarTodo());
+$("recalcular-destacadas").addEventListener("click", async () => {
+  const boton = $("recalcular-destacadas");
+  const salida = $("resultado-destacadas");
+  boton.disabled = true;
+  salida.hidden = false;
+  salida.textContent = "Recalculando…";
+  try {
+    const { data } = await recalcularDestacadas({});
+    salida.textContent = textoDestacadas(data.n, data.config);
+  } catch (e) {
+    salida.textContent = `No se han podido recalcular: ${e.message}`;
+  } finally {
+    boton.disabled = false;
+  }
+});
 
 for (const boton of document.querySelectorAll("[data-pestana]")) {
   boton.addEventListener("click", () => {

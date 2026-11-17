@@ -2,7 +2,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { agruparDenuncias, MOTIVOS_OCULTAR, segmentos, validarNota } from "../logica.js";
+import { agruparDenuncias, MOTIVOS_OCULTAR, segmentos, textoDestacadas, validarNota } from "../logica.js";
 
 const casos = JSON.parse(readFileSync(new URL("../../functions/test/casos_moderacion.json", import.meta.url), "utf8"));
 
@@ -31,6 +31,12 @@ test("denuncias agrupadas por reseña, las más denunciadas primero", () => {
   ]);
   assert.deepEqual(g[0], { centro: "1", uid: "a", n: 2, motivos: { INSULTOS: 2 } });
   assert.equal(g.length, 3);
+});
+
+test("texto del recálculo de destacadas", () => {
+  const c = { minCaracteres: 120, maxDias: 180, maxResenas: 12, maxFraccionAltas: 1 / 3, umbralAlta: 4.5, minimoParaMostrar: 3 };
+  assert.equal(textoDestacadas(5, c), "5 reseñas destacadas (texto ≥ 120 caracteres, últimos 180 días, máx. 12, hasta un 33 % con 4.5 o más).");
+  assert.match(textoDestacadas(1, c), /^1 reseña destacada .*Son menos de 3/);
 });
 
 test("nota interna de hasta 500 caracteres", () => {

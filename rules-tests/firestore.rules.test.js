@@ -61,6 +61,7 @@ beforeEach(async () => {
 
 const anonimo = () => env.unauthenticatedContext().firestore();
 const usuario = (uid = "autorA") => env.authenticatedContext(uid).firestore();
+const adminCtx = () => env.authenticatedContext("admin1", { admin: true }).firestore();
 
 describe("centros", () => {
   test("cualquiera puede leer un centro, también sin cuenta", async () => {
@@ -135,6 +136,15 @@ describe("config", () => {
   test("lectura pública y sin escritura", async () => {
     await assertSucceeds(getDoc(doc(anonimo(), "config/departamentos")));
     await assertFails(setDoc(doc(usuario(), "config/departamentos"), { IES: [] }));
+    await assertFails(setDoc(doc(adminCtx(), "config/destacadas"), { minCaracteres: 10 }));
+  });
+});
+
+describe("destacadas", () => {
+  test("lectura pública; solo las escribe el backend", async () => {
+    await assertSucceeds(getDoc(doc(anonimo(), "destacadas/actual")));
+    await assertFails(setDoc(doc(usuario(), "destacadas/actual"), { resenas: [] }));
+    await assertFails(setDoc(doc(adminCtx(), "destacadas/actual"), { resenas: [] }));
   });
 });
 
