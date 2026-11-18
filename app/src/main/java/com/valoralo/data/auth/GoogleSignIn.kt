@@ -37,7 +37,7 @@ object GoogleSignIn {
         val resultado = try {
             CredentialManager.create(context).getCredential(context, peticion)
         } catch (e: GetCredentialCancellationException) {
-            throw ErrorCuenta(TipoErrorCuenta.GOOGLE_CANCELADO, e)
+            throw ErrorCuenta(tipoCancelacionGoogle(e.errorMessage?.toString()), e)
         } catch (e: GetCredentialException) {
             throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO, e)
         }

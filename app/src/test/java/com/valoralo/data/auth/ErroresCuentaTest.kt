@@ -68,6 +68,15 @@ class ErroresCuentaTest {
     }
 
     @Test
+    fun `una cancelacion con codigo de Play services es un fallo, no el usuario`() {
+        // Package/SHA-1 not accepted by Google: Credential Manager reports it as a "cancellation".
+        assertEquals(TipoErrorCuenta.GOOGLE_FALLO, tipoCancelacionGoogle("During get sign-in intent, failure response from one tap: 16: [16] Account reauth failed."))
+        assertEquals(TipoErrorCuenta.GOOGLE_FALLO, tipoCancelacionGoogle("10: Developer error"))
+        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO, tipoCancelacionGoogle("activity is cancelled by the user."))
+        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO, tipoCancelacionGoogle(null))
+    }
+
+    @Test
     fun `todos los tipos tienen mensaje`() {
         TipoErrorCuenta.entries.forEach { assert(it.mensaje.isNotBlank()) }
     }

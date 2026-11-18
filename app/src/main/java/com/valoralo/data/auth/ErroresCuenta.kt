@@ -13,6 +13,7 @@ enum class TipoErrorCuenta(val mensaje: String) {
     SIN_CONEXION("No hay conexión. Comprueba tu red e inténtalo de nuevo."),
     GOOGLE_NO_CONFIGURADO("El inicio de sesión con Google todavía no está disponible."),
     GOOGLE_CANCELADO("Has cancelado el inicio de sesión con Google."),
+    GOOGLE_FALLO("Google no ha permitido iniciar sesión. Inténtalo más tarde o entra con tu correo."),
     MENOR_DE_14("Valoralo es para mayores de 14 años. Hemos eliminado la cuenta."),
     DESCONOCIDO("No se ha podido completar la operación. Inténtalo de nuevo."),
 }
@@ -64,6 +65,13 @@ fun detalleError(e: Throwable): DetalleError {
 private fun codigoEnCausas(e: Throwable): String? =
     generateSequence(e.cause) { it.cause.takeIf { c -> c !== it } }.take(8)
         .firstNotNullOfOrNull { (it as? com.google.android.gms.common.api.ApiException)?.statusCode?.toString() ?: codigoEntreCorchetes(it.message) }
+
+/**
+ * Credential Manager reports some Google Identity failures as a cancellation (e.g. "16: [16] Account
+ * reauth failed" when the app's package/SHA-1 is not accepted). A real user cancellation has no status code.
+ */
+fun tipoCancelacionGoogle(mensaje: String?): TipoErrorCuenta =
+    if (codigoEntreCorchetes(mensaje) != null) TipoErrorCuenta.GOOGLE_FALLO else TipoErrorCuenta.GOOGLE_CANCELADO
 
 internal fun codigoEntreCorchetes(texto: String?): String? =
     texto?.let { Regex("""\[(\d+)]""").find(it)?.groupValues?.get(1) ?: Regex("""^(\d+):""").find(it.trim())?.groupValues?.get(1) }
