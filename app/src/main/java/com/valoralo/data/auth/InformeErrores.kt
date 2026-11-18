@@ -21,6 +21,7 @@ object InformeErrores {
                 setCustomKey("error_cuenta", e.tipo.name)
                 setCustomKey("error_tipo", detalle?.tipo.orEmpty())
                 setCustomKey("error_codigo", detalle?.codigo.orEmpty())
+                setCustomKey("error_clase", detalle?.clase.orEmpty())
                 recordException(ErrorNoFatal("$operacion: ${detalle?.resumen ?: e.tipo.name}", e.cause ?: e))
             }
         }

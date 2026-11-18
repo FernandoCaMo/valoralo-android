@@ -17,6 +17,8 @@ import com.valoralo.data.bloqueos.BloqueosRepository
 import com.valoralo.data.bloqueos.ExcepcionBloqueo
 import com.valoralo.data.likes.ClaveResena
 import com.valoralo.data.likes.LikesRepository
+import com.valoralo.data.red.Conectividad
+import com.valoralo.data.pendientes.AccionesPendientes
 import com.valoralo.domain.usecase.EstadoLike
 import com.valoralo.domain.usecase.OrdenResenas
 import com.valoralo.domain.usecase.ordenadas
@@ -40,6 +42,9 @@ import javax.inject.Inject
 sealed interface DetailUiState {
     data object Cargando : DetailUiState
     data object NoEncontrado : DetailUiState
+
+    /** Still loading and there is no network: it loads by itself when the network comes back. */
+    data object SinConexion : DetailUiState
     data object Error : DetailUiState
     data class Listo(
         val centro: Centro,
@@ -59,6 +64,10 @@ sealed interface DetailUiState {
     ) : DetailUiState
 }
 
+/** Loading without network means "Sin conexión" (never "not found": an uncached centro waits for the server). */
+internal fun conRed(estado: DetailUiState, conectado: Boolean): DetailUiState =
+    if (estado == DetailUiState.Cargando && !conectado) DetailUiState.SinConexion else estado
+
 @HiltViewModel
 class DetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -67,12 +76,14 @@ class DetailViewModel @Inject constructor(
     private val valoraciones: ValoracionRepository,
     likesRepo: LikesRepository,
     private val bloqueos: BloqueosRepository,
+    conectividad: Conectividad,
+    pendientes: AccionesPendientes,
 ) : ViewModel() {
 
     private val codigo: String = checkNotNull(savedStateHandle[ARG_CODIGO])
     private val filtroRol = MutableStateFlow(FiltroRol.TODOS)
     private val orden = MutableStateFlow(OrdenResenas.RECIENTES)
-    val likes = ControlLikes(viewModelScope, likesRepo)
+    val likes = ControlLikes(viewModelScope, likesRepo, conectividad, pendientes)
     private val misLikes = likesRepo.misLikes(listOf(codigo)).onStart { emit(emptySet()) }
     private val _aviso = MutableStateFlow<String?>(null)
     /** One-off messages (report sent, errors). */
@@ -116,7 +127,9 @@ class DetailViewModel @Inject constructor(
                 },
             )
         }
-    }.catch { emit(DetailUiState.Error) }
+    }.onStart<DetailUiState> { emit(DetailUiState.Cargando) }
+        .catch { emit(DetailUiState.Error) }
+        .combine(conectividad.conectado, ::conRed)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailUiState.Cargando)
 
     fun onFiltroRolChange(filtro: FiltroRol) = filtroRol.update { filtro }

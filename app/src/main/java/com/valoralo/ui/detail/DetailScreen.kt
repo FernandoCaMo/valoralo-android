@@ -176,6 +176,9 @@ private fun DetailContent(
             DetailUiState.NoEncontrado -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
                 Text("No hemos encontrado este centro.")
             }
+            DetailUiState.SinConexion -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
+                Text("Sin conexión. Este centro se cargará en cuanto vuelvas a tener red.")
+            }
             DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
                 Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
             }
@@ -250,7 +253,7 @@ private fun DetailLista(
         if (state.resenas.isEmpty()) {
             item {
                 Text(
-                    "Aún no hay reseñas${state.filtroRol.deQuien()}.",
+                    textoSinResenas(state.filtroRol, tengoPropia = state.miValoracion != null),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -484,6 +487,13 @@ private fun DialogoDenuncia(onDenunciar: (MotivoDenuncia) -> Unit, onCancelar: (
         },
         dismissButton = { TextButton(onClick = onCancelar) { Text("Cancelar") } },
     )
+}
+
+/** Under "Reseñas" (the user's own review is shown apart, under "Tu valoración"). */
+internal fun textoSinResenas(filtro: FiltroRol, tengoPropia: Boolean): String = when {
+    !tengoPropia -> "Aún no hay reseñas${filtro.deQuien()}."
+    filtro == FiltroRol.TODOS -> "Aún no hay reseñas de otras personas."
+    else -> "Aún no hay otras reseñas${filtro.deQuien()}."
 }
 
 /** "Aún no hay reseñas{deQuien()}." */

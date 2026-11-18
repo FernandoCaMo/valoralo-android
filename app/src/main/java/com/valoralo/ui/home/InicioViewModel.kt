@@ -36,6 +36,8 @@ class InicioViewModel @Inject constructor(
     centros: CentroRepository,
     private val likesRepo: LikesRepository,
     bloqueos: BloqueosRepository,
+    conectividad: com.valoralo.data.red.Conectividad,
+    pendientes: com.valoralo.data.pendientes.AccionesPendientes,
 ) : ViewModel() {
 
     /** null while loading. One read of destacadas/actual per visit to Inicio. */
@@ -46,7 +48,7 @@ class InicioViewModel @Inject constructor(
         d?.copy(resenas = d.resenas.filterNot { it.autorUid != null && it.autorUid in bloqueados })
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
-    val likes = ControlLikes(viewModelScope, likesRepo)
+    val likes = ControlLikes(viewModelScope, likesRepo, conectividad, pendientes)
 
     /** Hearts of the carousel by review. */
     @OptIn(ExperimentalCoroutinesApi::class)

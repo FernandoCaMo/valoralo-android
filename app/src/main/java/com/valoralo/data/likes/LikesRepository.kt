@@ -24,7 +24,7 @@ import javax.inject.Singleton
 data class ClaveResena(val codigo: String, val autorUid: String)
 
 enum class ErrorLike(val mensaje: String) {
-    SIN_SESION("Inicia sesión para dar like a las reseñas."),
+    SIN_SESION("Inicia sesión y daremos tu like a la reseña."),
     LIMITE("Has dado muchos likes en poco tiempo. Prueba más tarde."),
     OTRO("No se ha podido guardar el like. Inténtalo de nuevo."),
 }

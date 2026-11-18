@@ -14,6 +14,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
@@ -160,18 +162,21 @@ private fun SeccionPlegable(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(seccion.titulo, style = MaterialTheme.typography.titleMedium)
+            // Only one weighted child: the summary takes the rest of the row, so the arrow is always at the end
+            // (with two weights the arrow ended up in the middle when there was a summary).
             if (resumen != null) {
                 Text(
                     " · $resumen",
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Normal),
                     color = MaterialTheme.colorScheme.primary,
                     maxLines = 1,
-                    modifier = Modifier.weight(1f, fill = false),
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
+            } else {
+                Spacer(Modifier.weight(1f))
             }
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
-                Icon(if (expandida) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
-            }
+            Icon(if (expandida) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null)
         }
         AnimatedVisibility(expandida) {
             Column(Modifier.padding(bottom = 12.dp)) { contenido() }

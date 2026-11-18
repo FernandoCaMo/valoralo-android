@@ -56,6 +56,7 @@ import com.valoralo.ui.components.URL_CONDICIONES
 import com.valoralo.ui.compare.CompareViewModel
 import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.EventoAccion
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -74,7 +75,11 @@ fun ValoraloRoot(
     }
 
     val backStack by navController.currentBackStackEntryAsState()
-    val pestanaActual = backStack?.destination?.pestana()
+    // Recomputed whenever the current entry changes (backStack is observed above).
+    val pestanaActual = backStack?.let {
+        val ruta = rutaPestanaDe(navController.currentBackStack.value.map { e -> e.destination.route })
+        Pestana.entries.firstOrNull { p -> p.ruta == ruta }
+    }
     val sesion by sesionViewModel.sesion.collectAsStateWithLifecycle()
 
     // First Google login: the account exists but usuarios/{uid} doesn't yet → complete the profile.
@@ -96,6 +101,16 @@ fun ValoraloRoot(
                     navController.navigate(Rutas.LOGIN)
                 }
             }
+        }
+    }
+    // A bookmark or like waits for the sign-in it triggered; leaving the sign-in flow without an account drops it.
+    // Right after signing in the session is still "SinSesion" until the profile is read: wait a moment
+    // (a new session value cancels this effect) before deciding the sign-in was abandoned.
+    LaunchedEffect(backStack?.destination?.route, sesion) {
+        val ruta = backStack?.destination?.route ?: return@LaunchedEffect
+        if (ruta !in RUTAS_ACCESO && sesion is Sesion.SinSesion) {
+            delay(5_000)
+            acciones.descartarPendiente()
         }
     }
     val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
@@ -130,7 +145,10 @@ fun ValoraloRoot(
                     val seleccionada = pestana == pestanaActual
                     NavigationBarItem(
                         selected = seleccionada,
-                        onClick = { navController.irAPestana(pestana) },
+                        onClick = {
+                            if (seleccionada) navController.volverAInicioDePestana(pestana)
+                            else navController.irAPestana(pestana)
+                        },
                         icon = {
                             Icon(
                                 if (seleccionada) pestana.iconoSeleccionado else pestana.icono,
@@ -223,6 +241,7 @@ fun ValoraloRoot(
                     onCompletarPerfil = { navController.navigate(Rutas.COMPLETAR_PERFIL) },
                     onAcercaDe = { navController.navigate(Rutas.ACERCA_DE) },
                     onVerificar = { navController.navigate(Rutas.VERIFICAR_DOCENTE) },
+                    onAviso = ::avisar,
                 )
             }
             composable(Rutas.VERIFICAR_DOCENTE) { VerificarDocenteScreen(onVolver = { navController.popBackStack() }) }
@@ -302,11 +321,3 @@ private fun BandejaComparador(n: Int, onVer: () -> Unit, onVaciar: () -> Unit) {
     }
 }
 
-/** Centro detail belongs to the tab it was opened from; default to Inicio. */
-private fun NavDestination.pestana(): Pestana? =
-    Pestana.entries.firstOrNull { it.ruta == route }
-        ?: when (route) {
-            Rutas.CENTRO, Rutas.VALORAR, Rutas.COMPARAR -> Pestana.INICIO
-            Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL, Rutas.VERIFICAR_DOCENTE -> Pestana.CUENTA
-            else -> null
-        }

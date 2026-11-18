@@ -158,7 +158,8 @@ private fun BuscarContent(
 @Composable
 private fun Cabecera(filtrosActivos: Int, onFiltros: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp),
+        // Same 16 dp gutter as the search field below (the badge sits over the button's corner).
+        modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(

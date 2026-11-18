@@ -57,14 +57,30 @@ class ErroresCuentaTest {
     }
 
     @Test
-    fun `el detalle solo se muestra en debug y nunca al cancelar`() {
+    fun `el detalle depende del nivel y nunca se muestra al cancelar`() {
         val causa = androidx.credentials.exceptions.NoCredentialException("No credentials available")
-        assertEquals(TipoErrorCuenta.DESCONOCIDO.mensaje, textoError(TipoErrorCuenta.DESCONOCIDO, causa, mostrarDetalle = false))
-        val enDebug = textoError(TipoErrorCuenta.DESCONOCIDO, causa, mostrarDetalle = true)
-        assert(enDebug.startsWith(TipoErrorCuenta.DESCONOCIDO.mensaje)) { enDebug }
-        assert("[debug]" in enDebug && "No credentials available" in enDebug) { enDebug }
-        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO.mensaje, textoError(TipoErrorCuenta.GOOGLE_CANCELADO, causa, mostrarDetalle = true))
-        assertEquals(TipoErrorCuenta.CREDENCIALES.mensaje, textoError(TipoErrorCuenta.CREDENCIALES, null, mostrarDetalle = true))
+        assertEquals(TipoErrorCuenta.DESCONOCIDO.mensaje, textoError(TipoErrorCuenta.DESCONOCIDO, causa, NivelDetalle.NINGUNO))
+        val completo = textoError(TipoErrorCuenta.DESCONOCIDO, causa, NivelDetalle.COMPLETO)
+        assert(completo.startsWith(TipoErrorCuenta.DESCONOCIDO.mensaje)) { completo }
+        assert("[debug]" in completo && "No credentials available" in completo) { completo }
+        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO.mensaje, textoError(TipoErrorCuenta.GOOGLE_CANCELADO, causa, NivelDetalle.COMPLETO))
+        assertEquals(TipoErrorCuenta.CREDENCIALES.mensaje, textoError(TipoErrorCuenta.CREDENCIALES, null, NivelDetalle.COMPLETO))
+    }
+
+    @Test
+    fun `en release el error de Google muestra solo el codigo y la clase`() {
+        val causa = androidx.credentials.exceptions.GetCredentialCancellationException(
+            "During get sign-in intent, failure response from one tap: 16: [16] Account reauth failed.",
+        )
+        val texto = textoError(TipoErrorCuenta.GOOGLE_FALLO, causa, NivelDetalle.CODIGO)
+        assertEquals("${TipoErrorCuenta.GOOGLE_FALLO.mensaje}\n\nCódigo 16 · GetCredentialCancellationException", texto)
+    }
+
+    @Test
+    fun `el codigo de Firebase Auth tambien se muestra`() {
+        assertEquals("Código ERROR_INVALID_CREDENTIAL · FirebaseAuthInvalidCredentialsException",
+            DetalleError("FirebaseAuth", "ERROR_INVALID_CREDENTIAL", "x", "FirebaseAuthInvalidCredentialsException").codigoVisible)
+        assertEquals("IllegalStateException", detalleError(IllegalStateException("sin código")).codigoVisible)
     }
 
     @Test

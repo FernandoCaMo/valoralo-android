@@ -29,13 +29,16 @@ import javax.inject.Inject
 
 private val ZONA = ZoneId.of("Europe/Madrid")
 
-/** Google sign-in failures go to Crashlytics as non-fatal (type and code) before reaching the screen. */
+/**
+ * Google sign-in failures go to Crashlytics as non-fatal (type and code) and reach the screen with
+ * "Código 16 · GetCredentialCancellationException", so testers can report them (no personal data).
+ */
 private suspend fun informando(operacion: String, accion: suspend () -> Unit) {
     try {
         accion()
     } catch (e: ErrorCuenta) {
         InformeErrores.noFatal(operacion, e)
-        throw e
+        throw e.conCodigoVisible()
     }
 }
 
@@ -253,6 +256,7 @@ class MiCuentaViewModel @Inject constructor(private val repo: CuentaRepository) 
     }
 
     fun mensajesMostrados() = _estado.update { it.copy(error = null, aviso = null) }
+    fun avisoMostrado() = _estado.update { it.copy(aviso = null) }
 
     private fun ejecutar(avisoOk: String, accion: suspend () -> Unit) {
         viewModelScope.launch {

@@ -1,5 +1,14 @@
 package com.valoralo.ui.review
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.OffsetMapping
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -69,14 +78,23 @@ fun ReviewScreen(
 ) {
     val s by viewModel.estado.collectAsStateWithLifecycle()
     var confirmarBorrado by rememberSaveable { mutableStateOf(false) }
+    var confirmarSalida by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(s.terminado) { s.terminado?.let(onTerminado) }
+    // Leaving with unsaved changes (back arrow or system back) asks first.
+    val salir = { if (s.hayCambios) confirmarSalida = true else onVolver() }
+    BackHandler(enabled = s.hayCambios) { confirmarSalida = true }
+    // When the filter marks something, scroll to the warning (it is below the text field).
+    val avisoFiltro = remember { BringIntoViewRequester() }
+    LaunchedEffect(s.fragmentos, s.error) {
+        if (s.fragmentos.isNotEmpty() || s.error != null) avisoFiltro.bringIntoView()
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(if (s.existente != null) "Editar mi valoración" else "Valorar el centro") },
                 navigationIcon = {
-                    IconButton(onClick = onVolver) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
+                    IconButton(onClick = salir) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Volver") }
                 },
                 windowInsets = WindowInsets(0),
             )
@@ -126,10 +144,13 @@ fun ReviewScreen(
                 }
             }
             Bloque("Tu opinión", obligatorio = false) {
+                val colorMarca = MaterialTheme.colorScheme.error.copy(alpha = 0.25f)
                 OutlinedTextField(
                     value = f.texto,
                     onValueChange = { if (it.length <= LIMITE_TEXTO_VALORACION + 50) viewModel.onTexto(it) },
                     modifier = Modifier.fillMaxWidth(),
+                    // The marked fragments are also highlighted inside the field until the text changes.
+                    visualTransformation = remember(s.fragmentos, colorMarca) { ResaltarFragmentos(s.fragmentos, colorMarca) },
                     minLines = 4,
                     isError = f.texto.trim().length > LIMITE_TEXTO_VALORACION,
                     supportingText = {
@@ -141,8 +162,10 @@ fun ReviewScreen(
                 )
             }
 
-            if (s.fragmentos.isNotEmpty()) Fragmentos(f.texto, s.fragmentos)
-            s.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            Column(Modifier.bringIntoViewRequester(avisoFiltro), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                if (s.fragmentos.isNotEmpty()) Fragmentos(f.texto, s.fragmentos)
+                s.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
 
             Button(onClick = viewModel::publicar, enabled = !s.enviando, modifier = Modifier.fillMaxWidth()) {
                 Text(if (s.enviando) "Enviando…" else if (s.existente != null) "Guardar cambios" else "Publicar")
@@ -166,6 +189,19 @@ fun ReviewScreen(
                 )
             },
             confirmButton = { TextButton(onClick = viewModel::revisionVista) { Text("Entendido") } },
+        )
+    }
+    if (confirmarSalida) {
+        AlertDialog(
+            onDismissRequest = { confirmarSalida = false },
+            title = { Text("¿Descartar los cambios?") },
+            text = { Text("Si sales ahora, se perderán las notas y el texto que no has guardado.") },
+            confirmButton = {
+                TextButton(onClick = { confirmarSalida = false; onVolver() }) {
+                    Text("Descartar", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { confirmarSalida = false }) { Text("Seguir editando") } },
         )
     }
     if (confirmarBorrado) {
@@ -255,6 +291,22 @@ private fun OtroDepartamentoFila(otro: OtroDepartamento, onCambio: (OtroDepartam
         }
         SelectorEstrellas(otro.nota, { onCambio(otro.copy(nota = it)) }, otro.nombre.ifBlank { "Otro departamento" }, tamano = 22.dp)
     }
+}
+
+/** Background on the marked fragments inside the text field (same positions: no offset change). */
+private class ResaltarFragmentos(private val fragmentos: List<Fragmento>, private val color: Color) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val validos = fragmentos.filter { it.inicio >= 0 && it.fin <= text.length && it.inicio < it.fin }
+        if (validos.isEmpty()) return TransformedText(text, OffsetMapping.Identity)
+        val marcado = buildAnnotatedString {
+            append(text)
+            validos.forEach { addStyle(SpanStyle(background = color, fontWeight = FontWeight.Bold), it.inicio, it.fin) }
+        }
+        return TransformedText(marcado, OffsetMapping.Identity)
+    }
+
+    override fun equals(other: Any?) = other is ResaltarFragmentos && other.fragmentos == fragmentos && other.color == color
+    override fun hashCode() = fragmentos.hashCode() * 31 + color.hashCode()
 }
 
 /** Shows the text with the marked fragments highlighted, and the reason for each. */

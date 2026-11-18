@@ -4,7 +4,7 @@ import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 
 /** Sign-in flow screens: they can be opened from any tab but never belong to one. */
-private val RUTAS_ACCESO = setOf(Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL)
+val RUTAS_ACCESO = setOf(Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL)
 
 /**
  * Bottom-bar tab switch: each tab keeps its own back stack (saved and restored).
@@ -18,6 +18,20 @@ fun NavHostController.irAPestana(pestana: Pestana) {
         launchSingleTop = true
         restoreState = true
     }
+}
+
+/** Root route of each bottom-bar tab. */
+val RUTAS_PESTANA = listOf(Rutas.HOME, Rutas.SEARCH, Rutas.FAVORITOS, Rutas.CUENTA)
+
+/**
+ * Tab a screen belongs to: the last tab root below it in the back stack (bottom → top). A centro or the
+ * comparator opened from Buscar belongs to Buscar, not to Inicio (1.0.1 bug).
+ */
+fun rutaPestanaDe(pila: List<String?>): String? = pila.lastOrNull { it in RUTAS_PESTANA }
+
+/** Tapping the tab that is already selected goes back to its main screen. */
+fun NavHostController.volverAInicioDePestana(pestana: Pestana) {
+    popBackStack(pestana.ruta, inclusive = false)
 }
 
 /** After signing up or completing the profile: drop the sign-in flow and show the Mi cuenta tab. */

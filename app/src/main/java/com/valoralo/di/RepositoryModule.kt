@@ -59,4 +59,7 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindBloqueosRepository(impl: FirebaseBloqueosRepository): BloqueosRepository
+
+    @Binds
+    abstract fun bindConectividad(impl: com.valoralo.data.red.AndroidConectividad): com.valoralo.data.red.Conectividad
 }

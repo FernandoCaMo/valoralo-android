@@ -35,7 +35,11 @@ data class ReviewUiState(
     val fragmentos: List<Fragmento> = emptyList(),
     val enRevision: Boolean = false,
     val terminado: String? = null,
-)
+    /** The form as it was loaded (empty, or the existing review): leaving with changes asks first. */
+    val inicial: FormularioValoracion = FormularioValoracion(),
+) {
+    val hayCambios: Boolean get() = !cargando && terminado == null && formulario != inicial
+}
 
 @HiltViewModel
 class ReviewViewModel @Inject constructor(
@@ -52,12 +56,14 @@ class ReviewViewModel @Inject constructor(
         viewModelScope.launch {
             val centro = centros.observarCentro(codigo).filterNotNull().first()
             val mia = valoraciones.observarMiValoracion(codigo).first()
+            val formulario = mia?.let { v -> FormularioValoracion.desde(v, centro.departamentos) } ?: FormularioValoracion()
             _estado.update {
                 it.copy(
                     cargando = false,
                     centro = centro,
                     existente = mia,
-                    formulario = mia?.let { v -> FormularioValoracion.desde(v, centro.departamentos) } ?: FormularioValoracion(),
+                    formulario = formulario,
+                    inicial = formulario,
                     fragmentos = mia?.revision?.fragmentos.orEmpty(),
                     enRevision = mia?.estado == EstadoValoracion.EN_REVISION,
                 )

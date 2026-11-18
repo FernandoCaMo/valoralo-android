@@ -91,6 +91,18 @@ class NavegacionTest {
     }
 
     @Test
+    fun pulsarLaPestanaSeleccionadaVuelveASuPantallaPrincipal() {
+        hacer { irAPestana(Pestana.BUSCAR) }
+        hacer { navigate(Rutas.centro("21000011")) }
+        hacer { volverAInicioDePestana(Pestana.BUSCAR) }
+        assertEquals(Rutas.SEARCH, rutaActual())
+        hacer { navigate(Rutas.centro("21000011")) }
+        hacer { irAPestana(Pestana.INICIO) }
+        hacer { volverAInicioDePestana(Pestana.INICIO) }
+        assertEquals(Rutas.HOME, rutaActual())
+    }
+
+    @Test
     fun lasPestanasConservanSuPila() {
         hacer { irAPestana(Pestana.BUSCAR) }
         hacer { navigate(Rutas.centro("21000011")) }

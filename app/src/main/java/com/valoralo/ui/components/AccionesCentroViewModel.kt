@@ -7,6 +7,8 @@ import com.valoralo.data.comparador.SeleccionComparador
 import com.valoralo.data.favoritos.ErrorFavorito
 import com.valoralo.data.favoritos.ExcepcionFavorito
 import com.valoralo.data.favoritos.FavoritosRepository
+import com.valoralo.data.pendientes.AccionPendiente
+import com.valoralo.data.pendientes.AccionesPendientes
 import com.valoralo.domain.usecase.MAX_CENTROS_COMPARADOR
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,6 +27,7 @@ sealed interface EventoAccion {
 class AccionesCentroViewModel @Inject constructor(
     private val favoritosRepo: FavoritosRepository,
     private val comparador: SeleccionComparador,
+    private val pendientes: AccionesPendientes,
 ) : ViewModel() {
 
     /** null = no session. */
@@ -34,16 +37,29 @@ class AccionesCentroViewModel @Inject constructor(
     private val _eventos = MutableSharedFlow<EventoAccion>(extraBufferCapacity = 4)
     val eventos: SharedFlow<EventoAccion> = _eventos
 
+    init {
+        // Results of the bookmark or like the user asked for before signing in.
+        viewModelScope.launch { pendientes.mensajes.collect { _eventos.emit(EventoAccion.Aviso(it)) } }
+    }
+
     fun alternarFavorito(codigo: String) {
         viewModelScope.launch {
             try {
                 val ahora = favoritosRepo.alternar(codigo)
                 _eventos.emit(EventoAccion.Aviso(if (ahora) "Guardado en favoritos." else "Quitado de favoritos."))
             } catch (e: ExcepcionFavorito) {
-                _eventos.emit(if (e.error == ErrorFavorito.SIN_SESION) EventoAccion.IniciarSesion() else EventoAccion.Aviso(e.error.mensaje))
+                if (e.error == ErrorFavorito.SIN_SESION) {
+                    pendientes.guardar(AccionPendiente.Favorito(codigo))
+                    _eventos.emit(EventoAccion.IniciarSesion("Inicia sesión y lo guardaremos en tus favoritos."))
+                } else {
+                    _eventos.emit(EventoAccion.Aviso(e.error.mensaje))
+                }
             }
         }
     }
+
+    /** Signing in was abandoned: forget the pending bookmark or like. */
+    fun descartarPendiente() = pendientes.descartar()
 
     fun alternarComparar(codigo: String) {
         val aviso = when (comparador.alternar(codigo)) {

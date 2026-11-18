@@ -4,6 +4,10 @@ import com.valoralo.data.likes.ClaveResena
 import com.valoralo.data.likes.ErrorLike
 import com.valoralo.data.likes.ExcepcionLike
 import com.valoralo.data.likes.LikesRepository
+import com.valoralo.data.pendientes.AccionPendiente
+import com.valoralo.data.pendientes.AccionesPendientes
+import com.valoralo.data.red.Conectividad
+import com.valoralo.data.red.MENSAJE_SIN_CONEXION
 import com.valoralo.domain.usecase.AjusteLike
 import com.valoralo.domain.usecase.EstadoLike
 import com.valoralo.domain.usecase.estadoLike
@@ -20,7 +24,12 @@ import kotlinx.coroutines.launch
  * Likes of a screen (detail, Inicio): the heart changes at once and the count is adjusted
  * locally until the review's nLikes counter catches up; on an error it goes back.
  */
-class ControlLikes(private val scope: CoroutineScope, private val repo: LikesRepository) {
+class ControlLikes(
+    private val scope: CoroutineScope,
+    private val repo: LikesRepository,
+    private val conectividad: Conectividad,
+    private val pendientes: AccionesPendientes,
+) {
 
     private val _ajustes = MutableStateFlow<Map<ClaveResena, AjusteLike>>(emptyMap())
     val ajustes: StateFlow<Map<ClaveResena, AjusteLike>> = _ajustes.asStateFlow()
@@ -36,7 +45,14 @@ class ControlLikes(private val scope: CoroutineScope, private val repo: LikesRep
 
     fun alternar(clave: ClaveResena, nServidor: Int, dadoServidor: Boolean) {
         if (repo.uidActual() == null) {
+            // Given once the user signs in (unless it was already given).
+            if (!dadoServidor) pendientes.guardar(AccionPendiente.Like(clave))
             _eventos.tryEmit(EventoAccion.IniciarSesion(ErrorLike.SIN_SESION.mensaje))
+            return
+        }
+        // A like needs the server (it goes in a transaction with the hourly limit): don't mark it offline.
+        if (!conectividad.conectado.value) {
+            _eventos.tryEmit(EventoAccion.Aviso(MENSAJE_SIN_CONEXION))
             return
         }
         val previo = _ajustes.value[clave]?.takeUnless { it.caducado(nServidor) }

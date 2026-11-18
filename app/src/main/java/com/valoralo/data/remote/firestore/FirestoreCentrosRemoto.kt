@@ -61,6 +61,9 @@ class FirestoreCentrosRemoto @Inject constructor(
                 close(error)
                 return@addSnapshotListener
             }
+            // Offline and not cached: Firestore says "doesn't exist (from cache)". That is not "not found":
+            // keep waiting for the server (the detail shows "Sin conexión" meanwhile).
+            if (snap != null && !snap.exists() && snap.metadata.isFromCache) return@addSnapshotListener
             trySend(snap?.takeIf { it.exists() }?.let { it.data.orEmpty().aCentro(it.id) })
         }
         awaitClose { registro.remove() }

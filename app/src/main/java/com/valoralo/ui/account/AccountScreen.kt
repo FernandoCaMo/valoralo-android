@@ -60,6 +60,7 @@ import com.valoralo.ui.components.URL_PRIVACIDAD
 import com.valoralo.ui.components.URL_CONDICIONES
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.Row
 
 @Composable
@@ -69,6 +70,7 @@ fun AccountScreen(
     onCompletarPerfil: () -> Unit,
     onAcercaDe: () -> Unit,
     onVerificar: () -> Unit,
+    onAviso: (String) -> Unit,
     viewModel: MiCuentaViewModel = hiltViewModel(),
 ) {
     val sesion by viewModel.sesion.collectAsStateWithLifecycle()
@@ -100,8 +102,11 @@ fun AccountScreen(
         }
     }
 
+    // Errors need attention (dialog); confirmations ("Alias actualizado.") are a short snackbar.
     estado.error?.let { MensajeDialogo(it, viewModel::mensajesMostrados) }
-    estado.aviso?.let { MensajeDialogo(it, viewModel::mensajesMostrados) }
+    LaunchedEffect(estado.aviso) {
+        estado.aviso?.let { onAviso(it); viewModel.avisoMostrado() }
+    }
 }
 
 @Composable
@@ -161,7 +166,7 @@ private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCue
         "Autores bloqueados",
         when (bloqueados.size) { 0 -> "Ninguno"; 1 -> "1 autor"; else -> "${bloqueados.size} autores" },
     ) { verBloqueados = true }
-    Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borran tu perfil, tus reseñas y tus likes", flecha = false, peligro = true) { eliminar = true }
+    Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borra todo: perfil, reseñas, likes, favoritos…", flecha = false, peligro = true) { eliminar = true }
 
     if (verBloqueados) DialogoBloqueados(bloqueados, bloqueadosVm::desbloquear) { verBloqueados = false }
     if (editarAlias) DialogoAlias(perfil.alias, viewModel) { editarAlias = false }
@@ -253,6 +258,17 @@ private fun DialogoRol(actual: Rol, viewModel: MiCuentaViewModel, onCerrar: () -
     )
 }
 
+/** Everything deleted with the account (functions/src alBorrarUsuario). Keep in sync with web/eliminar-cuenta.html. */
+private val LO_QUE_SE_BORRA = listOf(
+    "Tu acceso y tu perfil (alias, rol y fecha de alta).",
+    "Tus valoraciones, con los likes que recibieron; dejan de contar en las notas.",
+    "Los likes que diste (se descuentan de las reseñas).",
+    "Tus favoritos.",
+    "Tus denuncias.",
+    "Los autores que bloqueaste.",
+    "Tu solicitud de verificación docente, si la hiciste: nombre, código CSV y PDF.",
+)
+
 @Composable
 private fun DialogoEliminar(conGoogle: Boolean, viewModel: MiCuentaViewModel, onCerrar: () -> Unit) {
     val context = LocalContext.current
@@ -262,7 +278,13 @@ private fun DialogoEliminar(conGoogle: Boolean, viewModel: MiCuentaViewModel, on
         title = { Text("¿Eliminar tu cuenta?") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Se borrarán tu perfil y tu acceso a Valoralo. Esta acción no se puede deshacer.")
+                Text("Se borrará todo lo tuyo en Valoralo, al momento y sin posibilidad de deshacerlo:")
+                // Same list as web/eliminar-cuenta.html (what alBorrarUsuario deletes).
+                Text(
+                    LO_QUE_SE_BORRA.joinToString("\n") { "• $it" },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 if (conGoogle) {
                     Text("Para confirmar que eres tú, te pediremos que elijas tu cuenta de Google.")
                 } else {
