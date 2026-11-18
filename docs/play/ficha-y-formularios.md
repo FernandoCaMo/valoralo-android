@@ -5,7 +5,7 @@ generados con `tools/play/graficos.py` a partir del icono de la app.
 
 ## Ficha de la tienda
 
-**Nombre:** Valoralo · **Categoría:** Educación · **Contacto:** valoralo.app@gmail.com
+**Nombre:** Valoralo · **Paquete:** `io.github.fernandocamo.valoralo` · **Categoría:** Educación · **Contacto:** valoralo.app@gmail.com
 **Política de privacidad:** https://valoralo-dc735.web.app/privacidad.html
 
 **Descripción corta** (≤ 80 caracteres):
@@ -40,6 +40,7 @@ detalle de un centro, comparador y una reseña.
 | Política de privacidad | https://valoralo-dc735.web.app/privacidad.html |
 | Acceso a la app | Algunas funciones requieren cuenta: dar a Google una cuenta de prueba (correo y contraseña) creada para los revisores |
 | Anuncios | No |
+| ID de publicidad | No (el permiso `AD_ID` se quita en el manifiesto) |
 | Clasificación de contenido (IARC) | Categoría Referencia/Educación; contenido generado por usuarios con interacción; con moderación y denuncias; sin compras, sin ubicación |
 | Público objetivo | 13-15, 16-17 y 18+ (no marcar menores de 13: activaría el programa para familias) |
 | App gubernamental | No |
@@ -69,7 +70,7 @@ La dirección IP la reciben Firebase Auth y Functions por seguridad; no la usamo
 
 1. Crear la app: nombre Valoralo, español (España), app, gratuita. Aceptar la **firma de apps de Google Play**.
 2. **Prueba interna**: subir el AAB (`app/build/outputs/bundle/release/app-release.aab`), añadirte como tester e instalar desde Play.
-3. **Huellas en Firebase**: Play Console → Integridad de la app → Firma de apps: copiar SHA-1 y SHA-256 de la **clave de firma de la app** y de la **clave de subida**. Añadirlas en Firebase → Configuración del proyecto → app Android → Huellas digitales. Después, App Check → app Android → Play Integrity con el SHA-256 de la clave de firma. Sin el SHA-1 de la clave de firma, el inicio de sesión con Google falla en la versión de Play.
+3. **Huellas en Firebase**: Play Console → Integridad de la app → Firma de apps: copiar SHA-1 y SHA-256 de la **clave de firma de la app** y de la **clave de subida**. Añadirlas en Firebase → Configuración del proyecto → app Android `io.github.fernandocamo.valoralo` → Huellas digitales (junto con las de debug). Después, App Check → app Android → Play Integrity con el SHA-256 de la clave de firma. Sin el SHA-1 de la clave de firma, el inicio de sesión con Google falla en la versión de Play.
 4. Contenido de la app y ficha (tablas de arriba).
 5. **Prueba cerrada**: lista de correos o Grupo de Google con 15–16 testers (mínimo 12), compartir el enlace de participación; cada uno acepta e instala desde Play. **12 testers durante 14 días seguidos** (cuentas personales creadas después del 13/11/2023); si alguien abandona y vuelve, su plazo empieza de cero.
 6. Panel de control → **Solicitar acceso a producción** (preguntas sobre la prueba, la app y su preparación). Google suele responder en 7 días o menos.

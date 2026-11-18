@@ -9,6 +9,8 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" tools:node="remove" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" tools:node="remove" />
     <uses-permission android:name="com.google.android.c2dm.permission.RECEIVE" tools:node="remove" />
+    <!-- No ads and no advertising ID; guard in case a library adds it (Play asks about it). -->
+    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove" />
 
     <application
         android:name=".ValoraloApp"

@@ -28,7 +28,8 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.valoralo"
+        // Play identifier (com.valoralo was taken). The namespace and the Kotlin packages stay com.valoralo.
+        applicationId = "io.github.fernandocamo.valoralo"
         minSdk = 26
         targetSdk = 36
         // Increase versionCode on every upload to Play.

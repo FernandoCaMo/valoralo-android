@@ -10,7 +10,7 @@ Especificación completa en el Project "Valoralo" de Claude: docs 01 (requisitos
 Stack
 Kotlin, Jetpack Compose (Material 3), MVVM, Hilt, Navigation Compose, Coroutines/Flow, Coil, Room.
 Firebase: Auth (email + Google), Firestore, Cloud Functions (TypeScript, en functions/), Storage, Hosting (panel admin en admin/), App Check, Crashlytics.
-minSdk 26. Paquete com.valoralo.
+minSdk 26. Paquete del código y namespace: com.valoralo. Identificador de la app (applicationId, Google Play y Firebase): io.github.fernandocamo.valoralo.
 Estructura
 app/src/main/java/com/valoralo/{ui,domain,data,di}
 functions/ Cloud Functions · admin/ panel de verificación · firestore.rules · storage.rules · firestore.indexes.json
