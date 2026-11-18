@@ -39,7 +39,8 @@ describe("publicarValoracion", () => {
     await db.doc(`usuarios/${u.uid}`).update({ condiciones: "2020-01" });
     const r = await llamar("publicarValoracion", formulario(), u);
     expect(r.error?.status).toBe("FAILED_PRECONDITION");
-    expect(r.error?.details).toMatchObject({ motivo: "CONDICIONES" });
+    // paraUsuario: the app shows this message as is (Spanish, written for the user).
+    expect(r.error?.details).toMatchObject({ motivo: "CONDICIONES", paraUsuario: true });
     expect((await db.doc(ruta(u.uid)).get()).exists).toBe(false);
   });
 

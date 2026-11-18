@@ -13,76 +13,33 @@ enum class TipoErrorCuenta(val mensaje: String) {
     SIN_CONEXION("No hay conexión. Comprueba tu red e inténtalo de nuevo."),
     GOOGLE_NO_CONFIGURADO("El inicio de sesión con Google todavía no está disponible."),
     GOOGLE_CANCELADO("Has cancelado el inicio de sesión con Google."),
-    GOOGLE_FALLO("Google no ha permitido iniciar sesión. Inténtalo más tarde o entra con tu correo."),
+    GOOGLE_FALLO("No se ha podido iniciar sesión con Google. Inténtalo de nuevo o entra con tu correo."),
     MENOR_DE_14("Valoralo es para mayores de 14 años. Hemos eliminado la cuenta."),
     DESCONOCIDO("No se ha podido completar la operación. Inténtalo de nuevo."),
 }
 
-/** How much of the technical cause the on-screen message includes. */
-enum class NivelDetalle {
-    /** Only the user text. */
-    NINGUNO,
-
-    /** Plus "Código 16 · GetCredentialCancellationException": no personal data, so also in release (Google sign-in). */
-    CODIGO,
-
-    /** Plus the technical message (debug builds). */
-    COMPLETO,
-}
-
-private val NIVEL_POR_DEFECTO = if (BuildConfig.DEBUG) NivelDetalle.COMPLETO else NivelDetalle.NINGUNO
-
+/**
+ * The message is always the user text. Only debug builds ([mostrarDetalle]) append the technical cause;
+ * in release it goes to Crashlytics ([InformeErrores]) and never to the screen.
+ */
 class ErrorCuenta(
     val tipo: TipoErrorCuenta,
     causa: Throwable? = null,
-    nivel: NivelDetalle = NIVEL_POR_DEFECTO,
-) : Exception(textoError(tipo, causa, nivel), causa) {
+    mostrarDetalle: Boolean = BuildConfig.DEBUG,
+) : Exception(textoError(tipo, causa, mostrarDetalle), causa) {
     val detalle: DetalleError? = causa?.let(::detalleError)
-
-    /** Same error, showing its code and type even in release (Google sign-in, so testers can report it). */
-    fun conCodigoVisible(): ErrorCuenta =
-        ErrorCuenta(tipo, cause, if (BuildConfig.DEBUG) NivelDetalle.COMPLETO else NivelDetalle.CODIGO)
 }
 
-internal fun textoError(tipo: TipoErrorCuenta, causa: Throwable?, nivel: NivelDetalle): String {
-    if (nivel == NivelDetalle.NINGUNO || causa == null || tipo == TipoErrorCuenta.GOOGLE_CANCELADO) return tipo.mensaje
+internal fun textoError(tipo: TipoErrorCuenta, causa: Throwable?, mostrarDetalle: Boolean): String {
+    if (!mostrarDetalle || causa == null || tipo == TipoErrorCuenta.GOOGLE_CANCELADO) return tipo.mensaje
     val d = detalleError(causa)
-    return when (nivel) {
-        NivelDetalle.CODIGO -> "${tipo.mensaje}\n\n${d.codigoVisible}"
-        else -> "${tipo.mensaje}\n\n${d.codigoVisible}\n[debug] ${d.resumen}"
-    }
+    return "${tipo.mensaje}\n\n[debug] ${d.codigoVisible}\n${d.resumen}"
 }
 
-/**
- * Technical cause of an account error: what Crashlytics receives and the screen shows. Never personal data:
- * [codigoVisible] only has the status/error code and the exception class (kept unobfuscated by proguard-rules.pro).
- */
-data class DetalleError(
-    val tipo: String,
-    val codigo: String?,
-    val mensaje: String?,
-    val clase: String = tipo,
-    /** Overrides the visible line (two attempts: "Botón: … / Selector: …"). */
-    private val visible: String? = null,
-) {
+/** Technical cause of an account error, for Crashlytics and debug builds. Never personal data. */
+data class DetalleError(val tipo: String, val codigo: String?, val mensaje: String?, val clase: String = tipo) {
     val resumen: String get() = listOfNotNull(tipo, codigo?.let { "código $it" }, mensaje).joinToString(" · ")
-    val codigoVisible: String get() = visible ?: listOfNotNull(codigo?.let { "Código $it" }, clase).joinToString(" · ")
-}
-
-/** Google refused both the sign-in button flow and the account sheet; [selector] = null if the user cancelled the second. */
-class FallosGoogle(val boton: Throwable, val selector: Throwable?) :
-    Exception("Botón: ${boton.message} | Selector: ${selector?.message ?: "cancelado"}", boton)
-
-private fun detalleDoble(f: FallosGoogle): DetalleError {
-    val b = detalleError(f.boton)
-    val s = f.selector?.let(::detalleError)
-    return DetalleError(
-        tipo = b.tipo,
-        codigo = b.codigo,
-        mensaje = "botón: ${b.resumen} | selector: ${s?.resumen ?: "cancelado"}",
-        clase = b.clase,
-        visible = "Botón: ${b.codigoVisible}\nSelector: ${s?.codigoVisible ?: "cancelado"}",
-    )
+    val codigoVisible: String get() = listOfNotNull(codigo?.let { "Código $it" }, clase).joinToString(" · ")
 }
 
 /**
@@ -97,7 +54,6 @@ fun detalleError(e: Throwable): DetalleError {
     cadena.firstNotNullOfOrNull { c ->
         when (c) {
             is ErrorCuenta -> null
-            is FallosGoogle -> detalleDoble(c)
             is androidx.credentials.exceptions.GetCredentialException -> DetalleError(
                 c.type, codigoEntreCorchetes(c.errorMessage?.toString()) ?: codigoEnCausas(c), c.errorMessage?.toString(), clase(c),
             )

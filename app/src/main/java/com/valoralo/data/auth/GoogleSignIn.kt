@@ -8,7 +8,6 @@ import androidx.credentials.CustomCredential
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialCancellationException
 import androidx.credentials.exceptions.GetCredentialException
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 
@@ -30,38 +29,14 @@ object GoogleSignIn {
     fun disponible(context: Context): Boolean = webClientId(context) != null
 
     /**
-     * Returns a Google ID token for Firebase, or throws [ErrorCuenta].
-     *
-     * First the "Sign in with Google" button flow; if Google refuses it (not a user cancellation),
-     * a second try with the account sheet ([GetGoogleIdOption]). If both fail, the error carries both
-     * codes ([FallosGoogle]) so a tester can tell whether the problem is the flow or the app's signature.
+     * Returns a Google ID token for Firebase, or throws [ErrorCuenta] (user text; the technical cause
+     * goes to Crashlytics). Needs every Play signing fingerprint in Firebase (docs/decisiones.md, 1.0.3).
      */
     suspend fun obtenerIdToken(context: Context): String {
         val clientId = webClientId(context) ?: throw ErrorCuenta(TipoErrorCuenta.GOOGLE_NO_CONFIGURADO)
-        val primero = try {
-            return pedir(context, GetSignInWithGoogleOption.Builder(clientId).build())
-        } catch (e: ErrorCuenta) {
-            if (e.tipo == TipoErrorCuenta.GOOGLE_CANCELADO) throw e
-            e
-        }
-        val segundo = try {
-            return pedir(
-                context,
-                GetGoogleIdOption.Builder()
-                    .setServerClientId(clientId)
-                    .setFilterByAuthorizedAccounts(false)
-                    .setAutoSelectEnabled(false)
-                    .build(),
-            )
-        } catch (e: ErrorCuenta) {
-            e
-        }
-        val causaSegundo = if (segundo.tipo == TipoErrorCuenta.GOOGLE_CANCELADO) null else segundo.cause ?: segundo
-        throw ErrorCuenta(primero.tipo, FallosGoogle(primero.cause ?: primero, causaSegundo))
-    }
-
-    private suspend fun pedir(context: Context, opcion: androidx.credentials.CredentialOption): String {
-        val peticion = GetCredentialRequest.Builder().addCredentialOption(opcion).build()
+        val peticion = GetCredentialRequest.Builder()
+            .addCredentialOption(GetSignInWithGoogleOption.Builder(clientId).build())
+            .build()
         val resultado = try {
             CredentialManager.create(context).getCredential(context, peticion)
         } catch (e: GetCredentialCancellationException) {

@@ -10,7 +10,7 @@ class ErroresPublicacionTest {
     fun `texto bloqueado trae los fragmentos`() {
         val e = errorDeFuncion(
             codigo = "INVALID_ARGUMENT",
-            mensaje = "El texto contiene nombres propios, insultos o datos personales.",
+            mensajeServidor = "El texto contiene nombres propios, insultos o datos personales.",
             detalles = mapOf(
                 "motivo" to "FILTRO",
                 "fragmentos" to listOf(mapOf("inicio" to 9, "fin" to 12, "texto" to "Ana", "motivo" to "NOMBRE_PROPIO")),
@@ -23,7 +23,13 @@ class ErroresPublicacionTest {
     @Test
     fun `otros errores de la funcion`() {
         assertEquals(TipoErrorPublicacion.DATOS_NO_VALIDOS, errorDeFuncion("INVALID_ARGUMENT", "Las notas van de 1 a 5.", mapOf("campo" to "centro.nota")).tipo)
-        assertEquals("Las notas van de 1 a 5.", errorDeFuncion("INVALID_ARGUMENT", "Las notas van de 1 a 5.", null).message)
+        assertEquals("Las notas van de 1 a 5.", errorDeFuncion("INVALID_ARGUMENT", "Las notas van de 1 a 5.", mapOf("paraUsuario" to true)).message)
+        // Without the mark it may be Firebase's own (English) message: our text instead.
+        assertEquals(TipoErrorPublicacion.DATOS_NO_VALIDOS.mensaje, errorDeFuncion("INVALID_ARGUMENT", "Bad Request", null).message)
+        assertEquals(TipoErrorPublicacion.OTRO.mensaje, errorDeFuncion("NOT_FOUND", "NOT_FOUND", null).message)
+        assertEquals(TipoErrorPublicacion.OTRO.mensaje, errorDeFuncion("PERMISSION_DENIED", "Unauthenticated", emptyMap<String, Any>()).message)
+        assertEquals("Ya tienes una solicitud pendiente de revisión.",
+            errorDeFuncion("ALREADY_EXISTS", "Ya tienes una solicitud pendiente de revisión.", mapOf("paraUsuario" to true)).message)
         assertEquals(TipoErrorPublicacion.SIN_SESION, errorDeFuncion("UNAUTHENTICATED", "x", null).tipo)
         assertEquals(TipoErrorPublicacion.YA_DENUNCIADA, errorDeFuncion("ALREADY_EXISTS", "Ya has denunciado esta reseña.", null).tipo)
         assertEquals(TipoErrorPublicacion.SIN_CONEXION, errorDeFuncion("UNAVAILABLE", null, null).tipo)

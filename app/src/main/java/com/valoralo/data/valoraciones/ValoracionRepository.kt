@@ -43,9 +43,14 @@ enum class MotivoDenuncia(val etiqueta: String) {
     OTRO("Otro motivo"),
 }
 
-/** Maps a callable error (FirebaseFunctionsException code, message, details) to [ErrorPublicacion]. */
-fun errorDeFuncion(codigo: String, mensaje: String?, detalles: Any?): ErrorPublicacion {
+/**
+ * Maps a callable error (FirebaseFunctionsException code, message, details) to [ErrorPublicacion].
+ * The server's message is shown only when our functions marked it as written for the user
+ * (`details.paraUsuario`); Firebase's own errors ("NOT_FOUND", "Unauthenticated"…) get our text.
+ */
+fun errorDeFuncion(codigo: String, mensajeServidor: String?, detalles: Any?): ErrorPublicacion {
     val d = detalles as? Map<*, *>
+    val mensaje = mensajeServidor?.takeIf { d?.get("paraUsuario") == true && it.isNotBlank() }
     return when (codigo) {
         "INVALID_ARGUMENT" -> if (d?.get("motivo") == "FILTRO") {
             ErrorPublicacion(TipoErrorPublicacion.TEXTO_NO_PERMITIDO, fragmentos = aFragmentos(d["fragmentos"]))

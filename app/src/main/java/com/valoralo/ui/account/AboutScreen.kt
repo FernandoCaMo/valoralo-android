@@ -10,6 +10,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -23,26 +24,21 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontFamily
 import com.valoralo.BuildConfig
-import com.valoralo.data.auth.FirmaApp
+import com.valoralo.ui.components.CORREO_CONTACTO
 import com.valoralo.ui.components.FUENTE_DATOS
+import com.valoralo.ui.components.URL_CONDICIONES
 import com.valoralo.ui.components.URL_DATASET_CENTROS
+import com.valoralo.ui.components.URL_ELIMINAR_CUENTA
 import com.valoralo.ui.components.URL_LICENCIA_CC_BY
+import com.valoralo.ui.components.URL_PRIVACIDAD
 
+/** What a user needs: version, legal links, contact and the data attribution. Nothing technical. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(onVolver: () -> Unit) {
     val uriHandler = LocalUriHandler.current
+    val abrir: (String) -> Unit = { url -> runCatching { uriHandler.openUri(url) } }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -65,14 +61,30 @@ fun AboutScreen(onVolver: () -> Unit) {
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Valoralo ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.titleLarge)
+            Text("Valoralo", style = MaterialTheme.typography.titleLarge)
+            Text("Versión ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
             Text(
                 "Valoraciones de centros educativos públicos de Andalucía: el centro, " +
                     "sus instalaciones y el profesorado por departamento.",
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            Text("Datos de los centros", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            HorizontalDivider()
+            Titulo("Información legal")
+            TextButton(onClick = { abrir(URL_CONDICIONES) }) { Text("Condiciones de uso") }
+            TextButton(onClick = { abrir(URL_PRIVACIDAD) }) { Text("Política de privacidad") }
+            TextButton(onClick = { abrir(URL_ELIMINAR_CUENTA) }) { Text("Cómo eliminar tu cuenta") }
+
+            HorizontalDivider()
+            Titulo("Contacto")
+            Text(
+                "Para dudas, sugerencias o para pedir que retiremos un contenido, escríbenos.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            TextButton(onClick = { abrir("mailto:$CORREO_CONTACTO") }) { Text(CORREO_CONTACTO) }
+
+            HorizontalDivider()
+            Titulo("Datos de los centros")
             Text(
                 "Los datos de los centros (nombre, dirección, contacto y enseñanzas) proceden del " +
                     "\"Directorio de centros docentes no universitarios de Andalucía\", publicado por la " +
@@ -81,51 +93,19 @@ fun AboutScreen(onVolver: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(FUENTE_DATOS, style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { runCatching { uriHandler.openUri(URL_DATASET_CENTROS) } }) {
-                Text("Ver el conjunto de datos")
-            }
-            TextButton(onClick = { runCatching { uriHandler.openUri(URL_LICENCIA_CC_BY) } }) {
-                Text("Licencia CC BY 4.0")
-            }
+            TextButton(onClick = { abrir(URL_DATASET_CENTROS) }) { Text("Ver el conjunto de datos") }
+            TextButton(onClick = { abrir(URL_LICENCIA_CC_BY) }) { Text("Licencia CC BY 4.0") }
             Text(
-                "Las valoraciones son opiniones de los usuarios y no representan a la Junta de Andalucía.",
+                "Valoralo es un proyecto independiente: no está vinculado a la Junta de Andalucía ni a ningún centro. " +
+                    "Las valoraciones son opiniones de los usuarios.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            FirmaInstalacion()
         }
     }
 }
 
-/**
- * Technical: the certificate Android sees for this installation. Google sign-in only works if its SHA-1
- * is registered in Firebase; with Play's key rotation it may differ from the one Play Console shows first.
- */
 @Composable
-private fun FirmaInstalacion() {
-    val context = LocalContext.current
-    val certificados = remember { FirmaApp.certificados(context) }
-    val portapapeles = LocalClipboardManager.current
-    var copiado by remember { mutableStateOf(false) }
-    HorizontalDivider()
-    Text("Firma de esta instalación", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-    Text(
-        "Dato técnico para el soporte: huella del certificado con el que Android ve esta app.",
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    if (certificados.isEmpty()) {
-        Text("No disponible.", style = MaterialTheme.typography.bodySmall)
-        return
-    }
-    val texto = certificados.joinToString("\n\n") { c ->
-        (if (c.actual) "Actual" else "Anterior (rotación de clave)") + "\nSHA-1: ${c.sha1}\nSHA-256: ${c.sha256}"
-    }
-    SelectionContainer {
-        Text(texto, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
-    }
-    TextButton(onClick = {
-        portapapeles.setText(AnnotatedString("Valoralo ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n$texto"))
-        copiado = true
-    }) { Text(if (copiado) "Copiado" else "Copiar las huellas") }
+private fun Titulo(texto: String) {
+    Text(texto, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
 }

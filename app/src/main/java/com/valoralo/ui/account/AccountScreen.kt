@@ -95,7 +95,7 @@ fun AccountScreen(
         HorizontalDivider(Modifier.padding(top = 8.dp))
         Opcion(Icons.Outlined.Gavel, "Condiciones de uso") { runCatching { uriHandler.openUri(URL_CONDICIONES) } }
         Opcion(Icons.Outlined.Policy, "Política de privacidad", onClick = abrirPrivacidad)
-        Opcion(Icons.Outlined.Info, "Acerca de", "Versión, fuente de los datos y licencia", onClick = onAcercaDe)
+        Opcion(Icons.Outlined.Info, "Acerca de", "Versión, información legal y contacto", onClick = onAcercaDe)
         if (sesion is Sesion.Iniciada) {
             val context = LocalContext.current
             Opcion(Icons.AutoMirrored.Filled.Logout, "Cerrar sesión", flecha = false) { viewModel.cerrarSesion(context) }

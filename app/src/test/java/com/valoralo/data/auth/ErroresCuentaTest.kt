@@ -57,38 +57,31 @@ class ErroresCuentaTest {
     }
 
     @Test
-    fun `el detalle depende del nivel y nunca se muestra al cancelar`() {
+    fun `el detalle solo se muestra en debug y nunca al cancelar`() {
         val causa = androidx.credentials.exceptions.NoCredentialException("No credentials available")
-        assertEquals(TipoErrorCuenta.DESCONOCIDO.mensaje, textoError(TipoErrorCuenta.DESCONOCIDO, causa, NivelDetalle.NINGUNO))
-        val completo = textoError(TipoErrorCuenta.DESCONOCIDO, causa, NivelDetalle.COMPLETO)
-        assert(completo.startsWith(TipoErrorCuenta.DESCONOCIDO.mensaje)) { completo }
-        assert("[debug]" in completo && "No credentials available" in completo) { completo }
-        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO.mensaje, textoError(TipoErrorCuenta.GOOGLE_CANCELADO, causa, NivelDetalle.COMPLETO))
-        assertEquals(TipoErrorCuenta.CREDENCIALES.mensaje, textoError(TipoErrorCuenta.CREDENCIALES, null, NivelDetalle.COMPLETO))
+        val debug = textoError(TipoErrorCuenta.DESCONOCIDO, causa, mostrarDetalle = true)
+        assert(debug.startsWith(TipoErrorCuenta.DESCONOCIDO.mensaje)) { debug }
+        assert("[debug]" in debug && "No credentials available" in debug) { debug }
+        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO.mensaje, textoError(TipoErrorCuenta.GOOGLE_CANCELADO, causa, mostrarDetalle = true))
+        assertEquals(TipoErrorCuenta.CREDENCIALES.mensaje, textoError(TipoErrorCuenta.CREDENCIALES, null, mostrarDetalle = true))
     }
 
     @Test
-    fun `en release el error de Google muestra solo el codigo y la clase`() {
+    fun `en release el error de Google es solo el texto para el usuario`() {
         val causa = androidx.credentials.exceptions.GetCredentialCancellationException(
             "During get sign-in intent, failure response from one tap: 16: [16] Account reauth failed.",
         )
-        val texto = textoError(TipoErrorCuenta.GOOGLE_FALLO, causa, NivelDetalle.CODIGO)
-        assertEquals("${TipoErrorCuenta.GOOGLE_FALLO.mensaje}\n\nCódigo 16 · GetCredentialCancellationException", texto)
+        val e = ErrorCuenta(TipoErrorCuenta.GOOGLE_FALLO, causa, mostrarDetalle = false)
+        assertEquals("No se ha podido iniciar sesión con Google. Inténtalo de nuevo o entra con tu correo.", e.message)
+        // The technical detail is still there for Crashlytics.
+        assertEquals("Código 16 · GetCredentialCancellationException", e.detalle?.codigoVisible)
     }
 
     @Test
-    fun `con los dos intentos fallidos se ven los dos codigos`() {
-        val boton = androidx.credentials.exceptions.GetCredentialCancellationException("16: [16] Account reauth failed.")
-        val selector = androidx.credentials.exceptions.GetCredentialUnknownException("10: [28444] Developer console is not set up correctly.")
-        val texto = textoError(TipoErrorCuenta.GOOGLE_FALLO, FallosGoogle(boton, selector), NivelDetalle.CODIGO)
-        assertEquals(
-            "${TipoErrorCuenta.GOOGLE_FALLO.mensaje}\n\nBotón: Código 16 · GetCredentialCancellationException\n" +
-                "Selector: Código 28444 · GetCredentialUnknownException",
-            texto,
-        )
-        val soloBoton = detalleError(ErrorCuenta(TipoErrorCuenta.GOOGLE_FALLO, FallosGoogle(boton, null)))
-        assertEquals("Botón: Código 16 · GetCredentialCancellationException\nSelector: cancelado", soloBoton.codigoVisible)
-        assertEquals("16", soloBoton.codigo)
+    fun `ningun mensaje de cuenta tiene codigos ni texto en ingles`() {
+        TipoErrorCuenta.entries.forEach {
+            assert(!Regex("""[A-Z_]{4,}|Exception|\[\d+]|Código""").containsMatchIn(it.mensaje)) { it.mensaje }
+        }
     }
 
     @Test

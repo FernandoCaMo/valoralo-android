@@ -24,7 +24,7 @@ import { FieldValue, getFirestore, Timestamp } from "firebase-admin/firestore";
 import * as logger from "firebase-functions/logger";
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onDocumentDeleted, onDocumentWritten } from "firebase-functions/v2/firestore";
-import { CallableRequest, HttpsError, onCall } from "firebase-functions/v2/https";
+import { CallableRequest, FunctionsErrorCode, HttpsError, onCall } from "firebase-functions/v2/https";
 import { defineBoolean } from "firebase-functions/params";
 import { calcularStats, Rol, ValoracionParaStats } from "./calculo";
 import { cambiosModeracion, ErrorModeracion, validarModeracion } from "./moderacion";
@@ -45,12 +45,20 @@ export const UMBRAL_DENUNCIAS = 3;
 // USUARIO_ABUSIVO reports the author, not only this review (Play's user-generated content policy).
 const MOTIVOS_DENUNCIA = ["INSULTOS", "NOMBRE_PROPIO", "DATOS_PERSONALES", "FALSA_O_SPAM", "USUARIO_ABUSIVO", "OTRO"];
 
+/**
+ * Error whose message is written for the user (Spanish). `details.paraUsuario` lets the app show it;
+ * errors without the mark (Firebase's own, in English: "NOT_FOUND", "Unauthenticated"…) get the app's text.
+ */
+export function errorUsuario(codigo: FunctionsErrorCode, mensaje: string, detalles?: Record<string, unknown>): HttpsError {
+  return new HttpsError(codigo, mensaje, { ...detalles, paraUsuario: true });
+}
+
 function comprobarLlamada(request: CallableRequest): string {
   if (APP_CHECK_OBLIGATORIO.value() && !request.app) {
-    throw new HttpsError("failed-precondition", "Esta versión de la app no está verificada.");
+    throw errorUsuario("failed-precondition", "Esta versión de la app no está verificada.");
   }
   const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError("unauthenticated", "Inicia sesión para continuar.");
+  if (!uid) throw errorUsuario("unauthenticated", "Inicia sesión para continuar.");
   return uid;
 }
 
@@ -62,10 +70,10 @@ export const publicarValoracion = onCall(async (request) => {
   const uid = comprobarLlamada(request);
   const codigo = (request.data as { codigo?: unknown } | null)?.codigo;
   if (typeof codigo !== "string" || !/^\d{8}$/.test(codigo)) {
-    throw new HttpsError("invalid-argument", "Código de centro no válido.");
+    throw errorUsuario("invalid-argument", "Código de centro no válido.");
   }
   const centroSnap = await db().doc(`centros/${codigo}`).get();
-  if (!centroSnap.exists) throw new HttpsError("not-found", "No existe ese centro.");
+  if (!centroSnap.exists) throw errorUsuario("not-found", "No existe ese centro.");
   const centro = centroSnap.data()!;
   const departamentos: string[] = centro.departamentos ?? [];
 
@@ -73,15 +81,15 @@ export const publicarValoracion = onCall(async (request) => {
   try {
     formulario = validarFormulario(request.data, departamentos);
   } catch (e) {
-    if (e instanceof ErrorValidacion) throw new HttpsError("invalid-argument", e.message, { campo: e.campo });
+    if (e instanceof ErrorValidacion) throw errorUsuario("invalid-argument", e.message, { campo: e.campo });
     throw e;
   }
 
   const perfilSnap = await db().doc(`usuarios/${uid}`).get();
-  if (!perfilSnap.exists) throw new HttpsError("failed-precondition", "Completa tu perfil antes de valorar.");
+  if (!perfilSnap.exists) throw errorUsuario("failed-precondition", "Completa tu perfil antes de valorar.");
   const p = perfilSnap.data()!;
   if (!haAceptadoCondiciones(p)) {
-    throw new HttpsError("failed-precondition", "Acepta las condiciones de uso antes de publicar.", { motivo: "CONDICIONES" });
+    throw errorUsuario("failed-precondition", "Acepta las condiciones de uso antes de publicar.", { motivo: "CONDICIONES" });
   }
   const perfil: PerfilAutor = { uid, alias: p.alias, rol: p.rol as Rol, verificado: p.verificado === true };
 
@@ -98,7 +106,7 @@ export const publicarValoracion = onCall(async (request) => {
       valoracion = construirValoracion(formulario, perfil, previa, new Date(), contexto);
     } catch (e) {
       if (e instanceof ErrorFiltro) {
-        throw new HttpsError("invalid-argument", e.message, { motivo: "FILTRO", fragmentos: e.fragmentos });
+        throw errorUsuario("invalid-argument", e.message, { motivo: "FILTRO", fragmentos: e.fragmentos });
       }
       throw e;
     }
@@ -135,17 +143,17 @@ export const denunciarValoracion = onCall(async (request) => {
   const uid = comprobarLlamada(request);
   const { codigo, autorUid, motivo } = (request.data ?? {}) as Record<string, unknown>;
   if (typeof codigo !== "string" || !/^\d{8}$/.test(codigo) || typeof autorUid !== "string" || autorUid.length === 0 || autorUid.includes("/")) {
-    throw new HttpsError("invalid-argument", "Reseña no válida.");
+    throw errorUsuario("invalid-argument", "Reseña no válida.");
   }
   if (typeof motivo !== "string" || !MOTIVOS_DENUNCIA.includes(motivo)) {
-    throw new HttpsError("invalid-argument", "Elige un motivo.");
+    throw errorUsuario("invalid-argument", "Elige un motivo.");
   }
-  if (autorUid === uid) throw new HttpsError("failed-precondition", "No puedes denunciar tu propia reseña.");
+  if (autorUid === uid) throw errorUsuario("failed-precondition", "No puedes denunciar tu propia reseña.");
 
   const valoracionRef = db().doc(`centros/${codigo}/valoraciones/${autorUid}`);
   const valoracion = await valoracionRef.get();
   if (!valoracion.exists || valoracion.get("estado") !== "PUBLICADA") {
-    throw new HttpsError("not-found", "Esa reseña ya no está publicada.");
+    throw errorUsuario("not-found", "Esa reseña ya no está publicada.");
   }
 
   try {
@@ -158,7 +166,7 @@ export const denunciarValoracion = onCall(async (request) => {
       estado: "PENDIENTE",
     });
   } catch (e) {
-    if ((e as { code?: number }).code === 6) throw new HttpsError("already-exists", "Ya has denunciado esta reseña.");
+    if ((e as { code?: number }).code === 6) throw errorUsuario("already-exists", "Ya has denunciado esta reseña.");
     throw e;
   }
   // Featured reviews must have no pending reports.
@@ -185,12 +193,12 @@ export const denunciarValoracion = onCall(async (request) => {
 /** Administrators only. Same transitions as tools/moderacion/moderar.py (src/moderacion.ts). */
 export const moderarValoracion = onCall(async (request) => {
   const moderadorUid = comprobarLlamada(request);
-  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  if (request.auth?.token.admin !== true) throw errorUsuario("permission-denied", "Sin acceso.");
   let m;
   try {
     m = validarModeracion(request.data);
   } catch (e) {
-    if (e instanceof ErrorModeracion) throw new HttpsError("invalid-argument", e.message);
+    if (e instanceof ErrorModeracion) throw errorUsuario("invalid-argument", e.message);
     throw e;
   }
   const ref = db().doc(`centros/${m.codigo}/valoraciones/${m.uid}`);
@@ -198,13 +206,13 @@ export const moderarValoracion = onCall(async (request) => {
     .where("centro", "==", m.codigo).where("valoracionUid", "==", m.uid).where("estado", "==", "PENDIENTE");
   return db().runTransaction(async (tx) => {
     const v = await tx.get(ref);
-    if (!v.exists) throw new HttpsError("not-found", "Esa reseña ya no existe.");
+    if (!v.exists) throw errorUsuario("not-found", "Esa reseña ya no existe.");
     const denuncias = await tx.get(pendientes);
     let cambios;
     try {
       cambios = cambiosModeracion(v.get("estado"), m.accion, m.motivo, m.nota, moderadorUid, new Date());
     } catch (e) {
-      if (e instanceof ErrorModeracion) throw new HttpsError("failed-precondition", e.message);
+      if (e instanceof ErrorModeracion) throw errorUsuario("failed-precondition", e.message);
       throw e;
     }
     tx.update(ref, cambios.valoracion);
@@ -298,7 +306,7 @@ export const calcularDestacadas = onSchedule({
 /** Administrators only: "Recalcular destacadas ahora" in the panel. */
 export const recalcularDestacadas = onCall(async (request) => {
   comprobarLlamada(request);
-  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  if (request.auth?.token.admin !== true) throw errorUsuario("permission-denied", "Sin acceso.");
   const { n, config } = await generarDestacadas(db(), new Date());
   return { n, config };
 });
@@ -306,8 +314,8 @@ export const recalcularDestacadas = onCall(async (request) => {
 // ---------- Verificación de docentes (doc 04) ----------
 
 function aHttpsError(e: unknown): never {
-  if (e instanceof ErrorVerificacion) throw new HttpsError("invalid-argument", e.message);
-  if (e instanceof ErrorOperacion) throw new HttpsError(e.codigo, e.message);
+  if (e instanceof ErrorVerificacion) throw errorUsuario("invalid-argument", e.message);
+  if (e instanceof ErrorOperacion) throw errorUsuario(e.codigo, e.message);
   throw e;
 }
 
@@ -323,7 +331,7 @@ export const solicitarVerificacion = onCall(async (request) => {
 /** Administrators only (custom claim admin = true, set with tools/admin/hacer_admin.py). */
 export const resolverVerificacion = onCall(async (request) => {
   const uid = comprobarLlamada(request);
-  if (request.auth?.token.admin !== true) throw new HttpsError("permission-denied", "Sin acceso.");
+  if (request.auth?.token.admin !== true) throw errorUsuario("permission-denied", "Sin acceso.");
   try {
     return await resolver(db(), getAuth(), getStorage().bucket(), uid, request.data, new Date());
   } catch (e) {

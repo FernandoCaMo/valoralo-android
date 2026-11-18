@@ -31,15 +31,15 @@ import javax.inject.Inject
 private val ZONA = ZoneId.of("Europe/Madrid")
 
 /**
- * Google sign-in failures go to Crashlytics as non-fatal (type and code) and reach the screen with
- * "Código 16 · GetCredentialCancellationException", so testers can report them (no personal data).
+ * Google sign-in failures go to Crashlytics as non-fatal (type, code, installed signature; no personal
+ * data). The screen only shows the user text (plus the cause in debug builds).
  */
 private suspend fun informando(operacion: String, context: Context, accion: suspend () -> Unit) {
     try {
         accion()
     } catch (e: ErrorCuenta) {
         InformeErrores.noFatal(operacion, e, FirmaApp.certificados(context))
-        throw e.conCodigoVisible()
+        throw e
     }
 }
 
