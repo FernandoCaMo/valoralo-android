@@ -14,7 +14,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavDestination
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -113,12 +112,7 @@ fun ValoraloRoot(
         )
     }
 
-    fun volverACuenta() {
-        navController.navigate(Rutas.CUENTA) {
-            popUpTo(Rutas.CUENTA) { inclusive = false }
-            launchSingleTop = true
-        }
-    }
+    fun volverACuenta() = navController.terminarAcceso()
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
@@ -316,11 +310,3 @@ private fun NavDestination.pestana(): Pestana? =
             Rutas.ACERCA_DE, Rutas.LOGIN, Rutas.REGISTRO, Rutas.COMPLETAR_PERFIL, Rutas.VERIFICAR_DOCENTE -> Pestana.CUENTA
             else -> null
         }
-
-private fun NavHostController.irAPestana(pestana: Pestana) {
-    navigate(pestana.ruta) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
-    }
-}

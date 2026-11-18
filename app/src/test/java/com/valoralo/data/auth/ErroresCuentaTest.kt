@@ -30,6 +30,44 @@ class ErroresCuentaTest {
     }
 
     @Test
+    fun `el detalle de Credential Manager usa el tipo estable y el codigo entre corchetes`() {
+        val e = androidx.credentials.exceptions.GetCredentialUnknownException(
+            "During begin sign in, failure response from one tap: 10: [28444] Developer console is not set up correctly.",
+        )
+        val d = detalleError(ErrorCuenta(TipoErrorCuenta.DESCONOCIDO, e).cause!!)
+        assertEquals(e.type, d.tipo)
+        assert(d.tipo.contains("UNKNOWN")) { d.tipo }
+        assertEquals("28444", d.codigo)
+    }
+
+    @Test
+    fun `el detalle busca la causa conocida dentro de la cadena`() {
+        val sinCredencial = androidx.credentials.exceptions.NoCredentialException("No credentials available")
+        val d = detalleError(RuntimeException("envoltorio", sinCredencial))
+        assertEquals(sinCredencial.type, d.tipo)
+        assertEquals("No credentials available", d.mensaje)
+        assertEquals(null, d.codigo)
+    }
+
+    @Test
+    fun `sin causa conocida usa la clase y el codigo del mensaje`() {
+        val d = detalleError(IllegalStateException("16: Account reauth failed."))
+        assertEquals("IllegalStateException", d.tipo)
+        assertEquals("16", d.codigo)
+    }
+
+    @Test
+    fun `el detalle solo se muestra en debug y nunca al cancelar`() {
+        val causa = androidx.credentials.exceptions.NoCredentialException("No credentials available")
+        assertEquals(TipoErrorCuenta.DESCONOCIDO.mensaje, textoError(TipoErrorCuenta.DESCONOCIDO, causa, mostrarDetalle = false))
+        val enDebug = textoError(TipoErrorCuenta.DESCONOCIDO, causa, mostrarDetalle = true)
+        assert(enDebug.startsWith(TipoErrorCuenta.DESCONOCIDO.mensaje)) { enDebug }
+        assert("[debug]" in enDebug && "No credentials available" in enDebug) { enDebug }
+        assertEquals(TipoErrorCuenta.GOOGLE_CANCELADO.mensaje, textoError(TipoErrorCuenta.GOOGLE_CANCELADO, causa, mostrarDetalle = true))
+        assertEquals(TipoErrorCuenta.CREDENCIALES.mensaje, textoError(TipoErrorCuenta.CREDENCIALES, null, mostrarDetalle = true))
+    }
+
+    @Test
     fun `todos los tipos tienen mensaje`() {
         TipoErrorCuenta.entries.forEach { assert(it.mensaje.isNotBlank()) }
     }

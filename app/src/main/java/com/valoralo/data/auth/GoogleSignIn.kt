@@ -43,9 +43,13 @@ object GoogleSignIn {
         }
         val credencial = resultado.credential
         if (credencial is CustomCredential && credencial.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-            return GoogleIdTokenCredential.createFrom(credencial.data).idToken
+            return try {
+                GoogleIdTokenCredential.createFrom(credencial.data).idToken
+            } catch (e: Exception) {
+                throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO, e)
+            }
         }
-        throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO)
+        throw ErrorCuenta(TipoErrorCuenta.DESCONOCIDO, IllegalStateException("Credencial inesperada: ${credencial.type}"))
     }
 
     /** Forget the chosen Google account on sign-out. */

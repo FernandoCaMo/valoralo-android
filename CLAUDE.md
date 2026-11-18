@@ -27,5 +27,5 @@ No subir google-services.json de producción ni secretos al repo.
 TDD para la lógica de dominio y de las Functions (agregados, permisos, verificación).
 Comandos
 Compilar: ./gradlew assembleDebug
-Tests: ./gradlew test
+Tests: ./gradlew test · tests de interfaz (con el emulador encendido): ./gradlew connectedDebugAndroidTest
 Functions: cd functions && npm test · emuladores: firebase emulators:start

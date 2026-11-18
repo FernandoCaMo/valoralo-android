@@ -7,6 +7,7 @@ import com.valoralo.data.auth.CuentaRepository
 import com.valoralo.data.bloqueos.BloqueosRepository
 import com.valoralo.data.auth.ErrorCuenta
 import com.valoralo.data.auth.GoogleSignIn
+import com.valoralo.data.auth.InformeErrores
 import com.valoralo.data.auth.Reautenticacion
 import com.valoralo.data.auth.TipoErrorCuenta
 import com.valoralo.domain.model.PerfilNuevo
@@ -27,6 +28,16 @@ import java.time.ZoneId
 import javax.inject.Inject
 
 private val ZONA = ZoneId.of("Europe/Madrid")
+
+/** Google sign-in failures go to Crashlytics as non-fatal (type and code) before reaching the screen. */
+private suspend fun informando(operacion: String, accion: suspend () -> Unit) {
+    try {
+        accion()
+    } catch (e: ErrorCuenta) {
+        InformeErrores.noFatal(operacion, e)
+        throw e
+    }
+}
 
 /** Session for the whole app (bottom bar, redirects, "Añadir valoración"). */
 @HiltViewModel
@@ -89,7 +100,9 @@ class LoginViewModel @Inject constructor(private val repo: CuentaRepository) : V
         ejecutar { repo.iniciarSesion(s.correo, s.contrasena) }
     }
 
-    fun entrarConGoogle(context: Context) = ejecutar { repo.iniciarConGoogle(GoogleSignIn.obtenerIdToken(context)) }
+    fun entrarConGoogle(context: Context) = ejecutar {
+        informando("login_google") { repo.iniciarConGoogle(GoogleSignIn.obtenerIdToken(context)) }
+    }
 
     fun recuperarContrasena(correo: String) {
         validarCorreo(correo)?.let { e -> _estado.update { it.copy(error = e.mensaje) }; return }
@@ -233,7 +246,9 @@ class MiCuentaViewModel @Inject constructor(private val repo: CuentaRepository) 
         ejecutar("Tu cuenta se ha eliminado.") { repo.eliminarCuenta(Reautenticacion.ConContrasena(contrasena)) }
 
     fun eliminarConGoogle(context: Context) = ejecutar("Tu cuenta se ha eliminado.") {
-        repo.eliminarCuenta(Reautenticacion.ConGoogle(GoogleSignIn.obtenerIdToken(context)))
+        informando("eliminar_cuenta_google") {
+            repo.eliminarCuenta(Reautenticacion.ConGoogle(GoogleSignIn.obtenerIdToken(context)))
+        }
         GoogleSignIn.olvidar(context)
     }
 
