@@ -7,6 +7,7 @@ import com.valoralo.data.auth.CuentaRepository
 import com.valoralo.data.bloqueos.BloqueosRepository
 import com.valoralo.data.auth.ErrorCuenta
 import com.valoralo.data.auth.GoogleSignIn
+import com.valoralo.data.auth.FirmaApp
 import com.valoralo.data.auth.InformeErrores
 import com.valoralo.data.auth.Reautenticacion
 import com.valoralo.data.auth.TipoErrorCuenta
@@ -33,11 +34,11 @@ private val ZONA = ZoneId.of("Europe/Madrid")
  * Google sign-in failures go to Crashlytics as non-fatal (type and code) and reach the screen with
  * "Código 16 · GetCredentialCancellationException", so testers can report them (no personal data).
  */
-private suspend fun informando(operacion: String, accion: suspend () -> Unit) {
+private suspend fun informando(operacion: String, context: Context, accion: suspend () -> Unit) {
     try {
         accion()
     } catch (e: ErrorCuenta) {
-        InformeErrores.noFatal(operacion, e)
+        InformeErrores.noFatal(operacion, e, FirmaApp.certificados(context))
         throw e.conCodigoVisible()
     }
 }
@@ -104,7 +105,7 @@ class LoginViewModel @Inject constructor(private val repo: CuentaRepository) : V
     }
 
     fun entrarConGoogle(context: Context) = ejecutar {
-        informando("login_google") { repo.iniciarConGoogle(GoogleSignIn.obtenerIdToken(context)) }
+        informando("login_google", context) { repo.iniciarConGoogle(GoogleSignIn.obtenerIdToken(context)) }
     }
 
     fun recuperarContrasena(correo: String) {
@@ -249,7 +250,7 @@ class MiCuentaViewModel @Inject constructor(private val repo: CuentaRepository) 
         ejecutar("Tu cuenta se ha eliminado.") { repo.eliminarCuenta(Reautenticacion.ConContrasena(contrasena)) }
 
     fun eliminarConGoogle(context: Context) = ejecutar("Tu cuenta se ha eliminado.") {
-        informando("eliminar_cuenta_google") {
+        informando("eliminar_cuenta_google", context) {
             repo.eliminarCuenta(Reautenticacion.ConGoogle(GoogleSignIn.obtenerIdToken(context)))
         }
         GoogleSignIn.olvidar(context)

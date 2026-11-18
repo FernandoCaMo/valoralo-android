@@ -23,7 +23,18 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import com.valoralo.BuildConfig
+import com.valoralo.data.auth.FirmaApp
 import com.valoralo.ui.components.FUENTE_DATOS
 import com.valoralo.ui.components.URL_DATASET_CENTROS
 import com.valoralo.ui.components.URL_LICENCIA_CC_BY
@@ -81,6 +92,40 @@ fun AboutScreen(onVolver: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            FirmaInstalacion()
         }
     }
+}
+
+/**
+ * Technical: the certificate Android sees for this installation. Google sign-in only works if its SHA-1
+ * is registered in Firebase; with Play's key rotation it may differ from the one Play Console shows first.
+ */
+@Composable
+private fun FirmaInstalacion() {
+    val context = LocalContext.current
+    val certificados = remember { FirmaApp.certificados(context) }
+    val portapapeles = LocalClipboardManager.current
+    var copiado by remember { mutableStateOf(false) }
+    HorizontalDivider()
+    Text("Firma de esta instalación", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+    Text(
+        "Dato técnico para el soporte: huella del certificado con el que Android ve esta app.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    if (certificados.isEmpty()) {
+        Text("No disponible.", style = MaterialTheme.typography.bodySmall)
+        return
+    }
+    val texto = certificados.joinToString("\n\n") { c ->
+        (if (c.actual) "Actual" else "Anterior (rotación de clave)") + "\nSHA-1: ${c.sha1}\nSHA-256: ${c.sha256}"
+    }
+    SelectionContainer {
+        Text(texto, style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace))
+    }
+    TextButton(onClick = {
+        portapapeles.setText(AnnotatedString("Valoralo ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n$texto"))
+        copiado = true
+    }) { Text(if (copiado) "Copiado" else "Copiar las huellas") }
 }

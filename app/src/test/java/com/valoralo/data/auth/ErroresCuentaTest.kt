@@ -77,6 +77,27 @@ class ErroresCuentaTest {
     }
 
     @Test
+    fun `con los dos intentos fallidos se ven los dos codigos`() {
+        val boton = androidx.credentials.exceptions.GetCredentialCancellationException("16: [16] Account reauth failed.")
+        val selector = androidx.credentials.exceptions.GetCredentialUnknownException("10: [28444] Developer console is not set up correctly.")
+        val texto = textoError(TipoErrorCuenta.GOOGLE_FALLO, FallosGoogle(boton, selector), NivelDetalle.CODIGO)
+        assertEquals(
+            "${TipoErrorCuenta.GOOGLE_FALLO.mensaje}\n\nBotón: Código 16 · GetCredentialCancellationException\n" +
+                "Selector: Código 28444 · GetCredentialUnknownException",
+            texto,
+        )
+        val soloBoton = detalleError(ErrorCuenta(TipoErrorCuenta.GOOGLE_FALLO, FallosGoogle(boton, null)))
+        assertEquals("Botón: Código 16 · GetCredentialCancellationException\nSelector: cancelado", soloBoton.codigoVisible)
+        assertEquals("16", soloBoton.codigo)
+    }
+
+    @Test
+    fun `las huellas tienen el formato de Firebase`() {
+        // SHA-1("abc") = A9993E36 4706816A BA3E2571 7850C26C 9CD0D89D
+        assertEquals("A9:99:3E:36:47:06:81:6A:BA:3E:25:71:78:50:C2:6C:9C:D0:D8:9D", huella("abc".toByteArray(), "SHA-1"))
+    }
+
+    @Test
     fun `el codigo de Firebase Auth tambien se muestra`() {
         assertEquals("Código ERROR_INVALID_CREDENTIAL · FirebaseAuthInvalidCredentialsException",
             DetalleError("FirebaseAuth", "ERROR_INVALID_CREDENTIAL", "x", "FirebaseAuthInvalidCredentialsException").codigoVisible)

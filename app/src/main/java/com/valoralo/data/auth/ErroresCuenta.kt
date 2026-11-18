@@ -57,9 +57,32 @@ internal fun textoError(tipo: TipoErrorCuenta, causa: Throwable?, nivel: NivelDe
  * Technical cause of an account error: what Crashlytics receives and the screen shows. Never personal data:
  * [codigoVisible] only has the status/error code and the exception class (kept unobfuscated by proguard-rules.pro).
  */
-data class DetalleError(val tipo: String, val codigo: String?, val mensaje: String?, val clase: String = tipo) {
+data class DetalleError(
+    val tipo: String,
+    val codigo: String?,
+    val mensaje: String?,
+    val clase: String = tipo,
+    /** Overrides the visible line (two attempts: "Botón: … / Selector: …"). */
+    private val visible: String? = null,
+) {
     val resumen: String get() = listOfNotNull(tipo, codigo?.let { "código $it" }, mensaje).joinToString(" · ")
-    val codigoVisible: String get() = listOfNotNull(codigo?.let { "Código $it" }, clase).joinToString(" · ")
+    val codigoVisible: String get() = visible ?: listOfNotNull(codigo?.let { "Código $it" }, clase).joinToString(" · ")
+}
+
+/** Google refused both the sign-in button flow and the account sheet; [selector] = null if the user cancelled the second. */
+class FallosGoogle(val boton: Throwable, val selector: Throwable?) :
+    Exception("Botón: ${boton.message} | Selector: ${selector?.message ?: "cancelado"}", boton)
+
+private fun detalleDoble(f: FallosGoogle): DetalleError {
+    val b = detalleError(f.boton)
+    val s = f.selector?.let(::detalleError)
+    return DetalleError(
+        tipo = b.tipo,
+        codigo = b.codigo,
+        mensaje = "botón: ${b.resumen} | selector: ${s?.resumen ?: "cancelado"}",
+        clase = b.clase,
+        visible = "Botón: ${b.codigoVisible}\nSelector: ${s?.codigoVisible ?: "cancelado"}",
+    )
 }
 
 /**
@@ -74,6 +97,7 @@ fun detalleError(e: Throwable): DetalleError {
     cadena.firstNotNullOfOrNull { c ->
         when (c) {
             is ErrorCuenta -> null
+            is FallosGoogle -> detalleDoble(c)
             is androidx.credentials.exceptions.GetCredentialException -> DetalleError(
                 c.type, codigoEntreCorchetes(c.errorMessage?.toString()) ?: codigoEnCausas(c), c.errorMessage?.toString(), clase(c),
             )
