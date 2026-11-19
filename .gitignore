@@ -42,3 +42,6 @@ __pycache__/
 
 # Node
 node_modules/
+
+# Play screenshots: kept locally, never committed (fictional data, see docs/decisiones.md)
+docs/play/capturas/

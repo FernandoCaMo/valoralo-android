@@ -30,8 +30,12 @@ generados con `tools/play/graficos.py` a partir del icono de la app.
 >
 > Valoralo es un proyecto independiente: no está vinculado a la Junta de Andalucía ni a ningún centro. Los datos de los centros proceden del portal de datos abiertos de la Junta de Andalucía (licencia CC BY 4.0).
 
-**Capturas** (las haces en el móvil, entre 2 y 8, recomendadas 4–6): Inicio con el carrusel, Buscar con filtros,
-detalle de un centro, comparador y una reseña.
+**Capturas** (1080×1920, 9:16) en `capturas/`, **fuera del repositorio** (`.gitignore`): `01-inicio`,
+`02-buscar-filtros`, `03-detalle-centro`, `04-valorar-centro` y `05-comparador`. Hechas el 19/11/2026 en el emulador
+(Pixel 5 con `wm size 1080x1920`) con la versión debug contra los emuladores de Firebase. **Siempre con centros y
+reseñas ficticios** (ver decisiones.md): IES Monte Claro, IES Arroyo Sereno, CEIP Valle Claro, CEIP Las Amapolas y
+CEIP Colina Azul, con reseñas de ejemplo firmadas solo con el rol. La de filtros muestra el catálogo real de Sevilla,
+sin reseñas. Barra de estado en modo demo; los iconos de notificaciones del sistema se taparon con el color de fondo.
 
 ## Contenido de la app (Play Console → Política)
 
