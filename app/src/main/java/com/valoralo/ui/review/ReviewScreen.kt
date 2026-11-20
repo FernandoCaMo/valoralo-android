@@ -154,8 +154,13 @@ fun ReviewScreen(
                     minLines = 4,
                     isError = f.texto.trim().length > LIMITE_TEXTO_VALORACION,
                     supportingText = {
+                        val sobran = f.texto.trim().length - LIMITE_TEXTO_VALORACION
                         Row(Modifier.fillMaxWidth()) {
-                            Text("Sin nombres de personas, insultos ni datos personales.", Modifier.weight(1f))
+                            // Too long: say so, instead of turning the names reminder red (QA 1.0.5, finding 10).
+                            Text(
+                                if (sobran > 0) textoSobran(sobran) else "Sin nombres de personas, insultos ni datos personales.",
+                                Modifier.weight(1f),
+                            )
                             Text("${f.texto.trim().length}/$LIMITE_TEXTO_VALORACION")
                         }
                     },
@@ -218,6 +223,9 @@ fun ReviewScreen(
         )
     }
 }
+
+/** "Te sobra 1 carácter." / "Te sobran 50 caracteres." */
+internal fun textoSobran(n: Int): String = if (n == 1) "Te sobra 1 carácter." else "Te sobran $n caracteres."
 
 private fun Map<String, Int>.conNota(clave: String, nota: Int?): Map<String, Int> =
     if (nota == null || this[clave] == nota) this - clave else this + (clave to nota)

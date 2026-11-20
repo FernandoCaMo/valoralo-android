@@ -52,6 +52,20 @@ class ValidacionRegistroTest {
         assertEquals(ErrorRegistro.ALIAS_CARACTERES, validarAlias("<script>"))
     }
 
+    /** QA 1.0.5, findings 2 and 13: same checks as functions/src/alias.ts (insults only on the server). */
+    @Test
+    fun `alias con contacto o palabras reservadas`() {
+        listOf("612345678", "Llámame 612 34 56 78", "miweb.com", "visita algo.es", "www.algo").forEach {
+            assertEquals(it, ErrorRegistro.ALIAS_CONTACTO, validarAlias(it))
+        }
+        listOf(
+            "Docente verificado", "docente de Ciencias", "D0cente", "d.o.c.e.n.t.e", "Verificada 2024", "Moderador",
+            "Equipo de moderación", "Admin", "Administración", "Valoralo", "V4l0r4l0", "Junta de Andalucía", "Soporte técnico",
+        ).forEach { assertEquals(it, ErrorRegistro.ALIAS_RESERVADO, validarAlias(it)) }
+        listOf("Familia de 5º B", "Estudiante de 1º Bach", "Exalumna promoción 2024", "Profe de Bio", "Promo 2019 grupo 3")
+            .forEach { assertNull(it, validarAlias(it)) }
+    }
+
     @Test
     fun `correo`() {
         assertNull(validarCorreo("ana@ejemplo.es"))

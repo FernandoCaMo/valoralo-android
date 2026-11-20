@@ -58,7 +58,7 @@ class SesionViewModel @Inject constructor(private val repo: CuentaRepository) : 
                 repo.aceptarCondiciones()
                 null
             } catch (e: ErrorCuenta) {
-                e.message ?: "No se ha podido guardar. Inténtalo de nuevo."
+                e.message ?: com.valoralo.data.red.MENSAJE_ERROR_GENERICO
             }
         }
     }
@@ -163,7 +163,8 @@ class RegistroViewModel @Inject constructor(private val repo: CuentaRepository) 
 
     fun onCorreo(v: String) = _estado.update { it.copy(correo = v, errores = it.errores - CampoRegistro.CORREO) }
     fun onContrasena(v: String) = _estado.update { it.copy(contrasena = v, errores = it.errores - CampoRegistro.CONTRASENA) }
-    fun onAlias(v: String) = _estado.update { it.copy(alias = v, errores = it.errores - CampoRegistro.ALIAS) }
+    // Never more than the limit, also when pasting (QA 1.0.5, finding 4).
+    fun onAlias(v: String) = _estado.update { it.copy(alias = v.take(com.valoralo.domain.usecase.ALIAS_MAX), errores = it.errores - CampoRegistro.ALIAS) }
     fun onFecha(v: LocalDate?) = _estado.update { it.copy(fechaNacimiento = v, errores = it.errores - CampoRegistro.FECHA) }
     fun onRol(v: Rol) = _estado.update { it.copy(rol = v) }
     fun onPrivacidad(v: Boolean) = _estado.update { it.copy(aceptaPrivacidad = v, errores = it.errores - CampoRegistro.PRIVACIDAD) }
@@ -212,7 +213,12 @@ class RegistroViewModel @Inject constructor(private val repo: CuentaRepository) 
                 accion()
                 _estado.update { it.copy(enviando = false, terminado = errorFinal == null, error = errorFinal) }
             } catch (e: ErrorCuenta) {
-                _estado.update { it.copy(enviando = false, error = e.message) }
+                // The server rejected the alias (insults, reserved words…): show it under the field.
+                if (e.campo == "alias") {
+                    _estado.update { it.copy(enviando = false, errores = it.errores + (CampoRegistro.ALIAS to (e.message ?: ""))) }
+                } else {
+                    _estado.update { it.copy(enviando = false, error = e.message) }
+                }
             }
         }
     }

@@ -157,14 +157,48 @@ describe("usuarios", () => {
     fechaAlta: serverTimestamp(), condiciones: "2026-11", ...cambios,
   });
 
-  // QA 1.0.5 (findings 2 and 13): the profile is created and the alias changed only by the functions
-  // crearPerfil and cambiarAlias, which validate the public alias (functions/src/alias.ts).
-  test("la app no puede crear su perfil: lo crea la función crearPerfil", async () => {
-    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil()));
-    await assertFails(setDoc(doc(usuario("nuevo2"), "usuarios/nuevo2"), perfil({ rol: "OTRO" })));
+  // QA 1.0.5 (findings 2 and 13). From 1.0.6 the app uses the functions crearPerfil and cambiarAlias;
+  // during the transition (1.0.4/1.0.5 still installed) the rules accept direct writes, but only with
+  // an alias that passes the format, contact and reserved-word checks of functions/src/alias.ts.
+  const ALIAS_NO_PERMITIDOS = [
+    "Lu", "x".repeat(31), 42, "yo@correo.es", "Hola 😀 qué tal", "<b>x</b>",
+    "612345678", "Llámame 612 34 56 78", "miweb.com", "www.algo", "visita algo.es", "https_algo",
+    "Docente verificado", "docente de Ciencias", "D0cente", "d.o.c.e.n.t.e", "Verificada 2024", "Moderador",
+    "Equipo de moderación", "Admin", "Administración", "Valoralo", "V4l0r4l0", "Junta de Andalucía",
+    "Consejería", "Soporte técnico", "Cuenta oficial",
+  ];
+  const ALIAS_PERMITIDOS = ["Lucía R.", "Familia de 5º B", "Estudiante de 1º Bach", "Exalumna promoción 2024", "Profe de Bio", "maría-josé_2"];
+
+  test("cada usuario crea su propio perfil como ESTUDIANTE u OTRO, con un alias permitido", async () => {
+    await assertSucceeds(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil()));
+    await assertSucceeds(setDoc(doc(usuario("nuevo2"), "usuarios/nuevo2"), perfil({ rol: "OTRO", alias: "Familia de 5º B" })));
+  });
+
+  test("al crearlo el alias no puede llevar contacto ni suplantar un rol, la moderación o la app", async () => {
+    for (const [i, alias] of ALIAS_NO_PERMITIDOS.entries()) {
+      await assertFails(setDoc(doc(usuario(`n${i}`), `usuarios/n${i}`), perfil({ alias })));
+    }
+    for (const [i, alias] of ALIAS_PERMITIDOS.entries()) {
+      await assertSucceeds(setDoc(doc(usuario(`p${i}`), `usuarios/p${i}`), perfil({ alias })));
+    }
+  });
+
+  test("al registrarse hay que aceptar las condiciones vigentes", async () => {
+    const db = usuario("nuevo1");
+    const { condiciones, ...sinCondiciones } = perfil();
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), sinCondiciones));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ condiciones: "2020-01" })));
+  });
+
+  test("no puede crear el de otro, ni sin sesión, ni ser DOCENTE, verificado o menor, ni campos de más", async () => {
     await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/otro"), perfil()));
     await assertFails(setDoc(doc(anonimo(), "usuarios/nuevo1"), perfil()));
-    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil({ rol: "DOCENTE", verificado: true })));
+    const db = usuario("nuevo1");
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ rol: "DOCENTE" })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ verificado: true })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ mayorDe14: false })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaNacimiento: "2000-01-01" })));
+    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaAlta: new Date(2020, 0, 1) })));
   });
 
   test("una cuenta existente acepta las condiciones vigentes (y no otras)", async () => {
@@ -179,19 +213,18 @@ describe("usuarios", () => {
     await assertFails(getDoc(doc(anonimo(), "usuarios/autorA")));
   });
 
-  test("la app no puede cambiar el alias (ni con correo, ni suplantando, ni válido): lo hace cambiarAlias", async () => {
+  test("cambia su alias solo a uno permitido; nunca el de otro", async () => {
     const ref = doc(usuario("autorA"), "usuarios/autorA");
-    await assertFails(updateDoc(ref, { alias: "Nuevo alias" }));
-    await assertFails(updateDoc(ref, { alias: "yo@correo.es" }));
-    await assertFails(updateDoc(ref, { alias: "Docente verificado" }));
+    await assertSucceeds(updateDoc(ref, { alias: "Nuevo alias" }));
+    for (const alias of ALIAS_NO_PERMITIDOS) await assertFails(updateDoc(ref, { alias }));
     await assertFails(updateDoc(doc(usuario("autorB"), "usuarios/autorA"), { alias: "Intruso" }));
   });
 
-  test("puede cambiar entre ESTUDIANTE y OTRO (sin tocar el alias)", async () => {
+  test("puede cambiar entre ESTUDIANTE y OTRO", async () => {
     const ref = doc(usuario("autorA"), "usuarios/autorA");
     await assertSucceeds(updateDoc(ref, { rol: "OTRO" }));
-    await assertSucceeds(updateDoc(ref, { rol: "ESTUDIANTE" }));
-    await assertFails(updateDoc(ref, { rol: "OTRO", alias: "Otro alias" }));
+    await assertSucceeds(updateDoc(ref, { rol: "ESTUDIANTE", alias: "Otro alias" }));
+    await assertFails(updateDoc(ref, { rol: "OTRO", alias: "Moderador" }));
   });
 
   test("un docente verificado no cambia su rol desde la app", async () => {
@@ -201,7 +234,7 @@ describe("usuarios", () => {
     });
     const ref = doc(usuario("docente1"), "usuarios/docente1");
     await assertFails(updateDoc(ref, { rol: "OTRO" }));
-    await assertFails(updateDoc(ref, { alias: "Profe Nuevo" }));
+    await assertSucceeds(updateDoc(ref, { alias: "Profe Nuevo" }));
   });
 
   test("nunca puede pasar a DOCENTE ni tocar verificado", async () => {

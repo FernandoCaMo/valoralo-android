@@ -51,6 +51,7 @@ import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.valoralo.domain.usecase.ALIAS_MAX
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.valoralo.domain.model.Rol
@@ -206,9 +207,20 @@ private fun DialogoAlias(actual: String, viewModel: MiCuentaViewModel, onCerrar:
         title = { Text("Cambiar alias") },
         text = {
             OutlinedTextField(
-                value = alias, onValueChange = { alias = it; error = null },
+                // Never more than the limit, also when pasting (QA 1.0.5, finding 4).
+                value = alias, onValueChange = { alias = it.take(ALIAS_MAX); error = null },
                 label = { Text("Alias") }, singleLine = true,
-                isError = error != null, supportingText = { Text(error ?: "Es el nombre que verán los demás.") },
+                isError = error != null,
+                supportingText = {
+                    Row {
+                        Text(
+                            // Finding 3: published reviews keep the alias they were written with.
+                            error ?: "Es el nombre que verán los demás. Se aplicará a tus reseñas cuando las publiques o edites.",
+                            Modifier.weight(1f),
+                        )
+                        Text("${alias.length}/$ALIAS_MAX", Modifier.padding(start = 8.dp))
+                    }
+                },
             )
         },
         confirmButton = {
@@ -262,10 +274,10 @@ private fun DialogoRol(actual: Rol, viewModel: MiCuentaViewModel, onCerrar: () -
 private val LO_QUE_SE_BORRA = listOf(
     "Tu acceso y tu perfil (alias, rol y fecha de alta).",
     "Tus valoraciones, con los likes que recibieron; dejan de contar en las notas.",
-    "Los likes que diste (se descuentan de las reseñas).",
+    "Los likes que has dado (se descuentan de las reseñas).",
     "Tus favoritos.",
     "Tus denuncias.",
-    "Los autores que bloqueaste.",
+    "Los autores que has bloqueado.",
     "Tu solicitud de verificación docente, si la hiciste: nombre, código CSV y PDF.",
 )
 

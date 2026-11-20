@@ -74,6 +74,41 @@ La carpeta `docs/` es la fuente de verdad de la especificación. Cualquier cambi
   - Si Google rechaza el botón "Iniciar sesión con Google" (`GetSignInWithGoogleOption`), la app lo intenta con el selector de cuentas (`GetGoogleIdOption`, sin filtrar cuentas autorizadas) y, si también falla, muestra los dos códigos ("Botón: … / Selector: …").
   - **Resultado (18/11/2026):** la huella que faltaba era la de la **clave anterior** de la firma híbrida, SHA-1 `26:FF:D8:13:5B:5F:08:AD:75:35:F2:88:64:91:8F:A2:6E:A7:A9:79` (la que ve un móvil con Android 16 o anterior). Añadida en Firebase, Google funciona. **Regla: con la firma "preparada para la computación cuántica" hay que registrar en Firebase las tres huellas de Play** (clásica `1D:9A…`, poscuántica `A8:47…` y anterior `26:FF…`), además de la de subida y la de debug, y repetirlo cada vez que Play rote la clave (anual).
 - **1.0.4 (versionCode 5): nada técnico para el usuario.** Los mensajes de error son siempre texto para el usuario ("No se ha podido iniciar sesión con Google. Inténtalo de nuevo o entra con tu correo."); los detalles (código, clase, mensaje técnico, huella instalada) van solo a Crashlytics y, en debug, a Logcat y a la pantalla. Se quitan la sección "Firma de esta instalación" de Acerca de y el segundo intento con el selector de cuentas. Acerca de queda con versión, condiciones, privacidad, cómo eliminar la cuenta, contacto y la atribución de la Junta. Las funciones marcan sus mensajes para el usuario con `details.paraUsuario`; la app solo muestra el mensaje del servidor si lleva esa marca (los de Firebase, en inglés —"NOT_FOUND", "Unauthenticated"—, se cambian por el texto de la app).
+- **1.0.6 (versionCode 7, 20/11/2026): arreglos de la sesión de pruebas de la 1.0.5** (`docs/qa/informe-2026-11-20.md`).
+  - *Alias validado en el servidor* (hallazgos 2 y 13). `functions/src/alias.ts`, con la misma lista copiada en la app (`ValidacionRegistro.kt`) para avisar al momento:
+    - 3–30 caracteres; solo letras, números, espacios y `. _ -`;
+    - sin teléfonos (más de 5 cifras), correos ni enlaces;
+    - sin palabras reservadas que suplanten un rol, la moderación o la app: «docente», «verificad(o/a)», «moderador», «moderación», «admin…», «Valoralo», «Junta de Andalucía», «Consejería», «soporte», «oficial». Se comparan sin tildes, mayúsculas ni separadores y deshaciendo el *leet* («D0c-énte»);
+    - sin insultos (las listas del filtro; esto solo en el servidor).
+    
+    La 1.0.6 crea el perfil y cambia el alias solo con las funciones `crearPerfil` y `cambiarAlias`. **Transición:** mientras haya 1.0.4/1.0.5 instaladas, que escriben `usuarios/{uid}` directamente, las reglas aceptan esa escritura solo con un alias que pase el formato, el contacto y las palabras reservadas (expresiones regulares en `aliasPermitido`). Los insultos no se pueden comprobar en las reglas, pero `publicarValoracion` no publica con un alias que incumpla, así que nunca llegan a ser públicos. Cuando todos estén en ≥ 1.0.6: `allow create: if false` en `usuarios` y quitar `alias` del `update`. Revisados los alias de producción el 20/11/2026: ninguno incumple.
+  - *Filtro de nombres* (hallazgo 5):
+    - Las palabras corrientes que también son nombres pasan a ser nombres ambiguos: «segunda», «bienvenido/a», «cándido/a», «prudencio/a», «castillo», «clara», «julio»… Nunca se bloquean solas: al inicio de frase se publican; en medio, con mayúscula, van a revisión; tras un tratamiento («la profe Clara») o junto a otro nombre, se bloquean.
+    - El salto de línea vuelve a contar como inicio de frase: antes, `trimEnd()` lo quitaba antes de comprobarlo.
+    - Corpus de reseñas realistas en `functions/test/unit/filtro.corpus.test.ts`: deben publicarse (como mucho un 10 % en revisión) o bloquearse. Se añade una frase cada vez que una reseña real se bloquee o se cuele por error.
+  - *Saltos de línea* (hallazgo 6): el servidor deja como mucho una línea en blanco entre párrafos.
+  - *Denuncias* (hallazgo 14): `config/denuncias` con `maxPorHora` (10 por defecto) y `paraRetirarDestacada` (2 por defecto).
+    - Cada usuario tiene un contador por hora, `usuarios/{uid}/limites/denuncias`, escrito en la misma transacción que la denuncia; una denuncia repetida no lo gasta.
+    - Una reseña sale de Inicio con 2 denuncias pendientes de usuarios distintos, tanto al momento como en el cálculo de cada hora.
+  - *Red* (hallazgos 11 y 12). `LlamadasFunciones` se usa en publicar, denunciar, verificar, crear perfil y cambiar alias:
+    - sin red, no se envía nada y se avisa «Sin conexión…»;
+    - si la conexión se corta durante la llamada, la app espera hasta 20 s a que vuelva y comprueba en el servidor si la acción se hizo:
+      - **publicar:** lee la reseña y la compara con lo enviado;
+      - **denunciar:** la reenvía; «ya denunciada» significa que había llegado;
+      - **verificar:** busca una solicitud pendiente reciente;
+      - **perfil y alias:** lee el perfil.
+    - Si se hizo, cuenta como éxito; si no, «Se ha cortado la conexión y no se ha completado»; si no se puede saber, lo dice y explica cómo comprobarlo. En el registro, si no se sabe si el perfil se creó, no se borra la cuenta.
+    - Un único texto para «sin conexión» y otro para el error genérico.
+  - *Accesibilidad* (hallazgo 15): el botón «Añadir/Editar mi valoración» es un solo nodo con nombre, rol de botón y acción (`clearAndSetSemantics`).
+  - *Menores:*
+    - aviso en el diálogo del alias («se aplicará a tus reseñas cuando las publiques o edites»);
+    - contador «n/30» y límite también al pegar;
+    - la app siempre en español, aunque el móvil esté en otro idioma (`attachBaseContext` con es-ES): el selector de fecha sale como «Seleccionar fecha», DD/MM/AAAA;
+    - los diálogos de denunciar y bloquear sobreviven al giro;
+    - «Te sobran N caracteres» en lugar del recordatorio en rojo;
+    - textos unificados («que has bloqueado», «para guardarlo aquí»);
+    - los datos de prueba se mueven a `app/src/test`, con alias genéricos y un centro ficticio.
+  - *Para más adelante:* acciones pendientes de denunciar y bloquear (1), barra lateral en horizontal (8), letra muy grande (16), color de las estrellas y número junto a ellas (17).
 - **1.0.5 (versionCode 6, 20/11/2026): pestañas deslizando y borde por rol.**
   - *Deslizar entre pestañas.* Solo en la pantalla principal de cada pestaña (`RaizPestana`); no en el detalle, el comparador, los formularios ni el acceso. Es un gesto sobre la navegación de siempre (`irAPestana`), no con un pager: cada pestaña conserva su pila y su estado igual que al pulsar la barra. Cuenta si el gesto es claramente horizontal (|dx| > 2·|dy|) y supera 56 dp, o 24 dp si es rápido (≥ 800 dp/s). Lo que ya se mueve de lado (el carrusel) tiene prioridad: si consume el gesto, la pestaña no cambia. No se actúa en las franjas laterales del gesto "atrás" del sistema (`WindowInsets.systemGestures`). En cuanto el gesto es horizontal se reclama, para que un botón ancho bajo el dedo cancele su pulsación (fallo encontrado al probar: deslizar sobre "Iniciar sesión" en Favoritos abría el login). Animación de 300 ms deslizando en la dirección de la barra entre pantallas principales de pestaña, también al pulsar la barra; el resto, el fundido de siempre. Se descartó un `HorizontalPager` con las cuatro pestañas (seguiría al dedo) porque obligaba a rehacer las pilas por pestaña, origen de los fallos de 1.0.0 y 1.0.1.
   - *Borde de las reseñas por rol* (detalle, "Tu valoración" y carrusel de Inicio): Docente azul de la marca (`#1F5E8C` / oscuro `#9CCBFB`), Estudiante terracota `#A0461A` / melocotón `#FFB68F` en oscuro (azul–naranja es la pareja que mejor se distingue con los daltonismos comunes; no es el amarillo de las estrellas ni el verde de la insignia de verificado), los dos de 2 dp; Otro, el gris suave de siempre (1 dp). Contraste con las superficies de las tarjetas ≥ 5,4:1 en claro y ≥ 8,2:1 en oscuro (WCAG pide 3:1 para bordes; test `BordeRolTest`). El color nunca es la única pista: el rol sigue escrito y la insignia "Docente verificado" se queda. En el carrusel, el rol escrito va del color del borde (≥ 4,5:1 como texto); Otro, en el gris de los textos secundarios.

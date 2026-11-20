@@ -148,7 +148,7 @@ fun InicioScreen(
             if (mios.isEmpty()) {
                 item {
                     Text(
-                        "Pulsa el marcador de un centro para tenerlo aquí.",
+                        "Pulsa el marcador de un centro para guardarlo aquí.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )

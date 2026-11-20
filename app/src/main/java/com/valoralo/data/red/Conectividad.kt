@@ -36,5 +36,8 @@ class AndroidConectividad @Inject constructor(@ApplicationContext context: Conte
         red != null && cm.getNetworkCapabilities(red)?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
 }
 
-/** Message for actions that need the server. */
+/** The one text for "no network" in the whole app (QA 1.0.5, finding 18). */
 const val MENSAJE_SIN_CONEXION = "Sin conexión. Inténtalo cuando vuelvas a tener red."
+
+/** The one generic error text (finding 18). */
+const val MENSAJE_ERROR_GENERICO = "No se ha podido completar. Inténtalo de nuevo."

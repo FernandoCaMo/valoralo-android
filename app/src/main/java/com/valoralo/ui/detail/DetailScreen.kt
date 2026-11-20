@@ -51,6 +51,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -159,10 +164,18 @@ private fun DetailContent(
         floatingActionButton = {
             if (state is DetailUiState.Listo) {
                 val propia = state.miValoracion != null
+                val etiqueta = if (propia) "Editar mi valoración" else "Añadir valoración"
                 ExtendedFloatingActionButton(
                     onClick = { onAnadirValoracion(state.centro) },
                     icon = { Icon(if (propia) Icons.Outlined.Edit else Icons.Filled.Add, contentDescription = null) },
-                    text = { Text(if (propia) "Editar mi valoración" else "Añadir valoración") },
+                    text = { Text(etiqueta) },
+                    // One accessibility node with name, role and action: the tree showed this button without
+                    // text (QA 1.0.5, finding 15), so TalkBack doesn't depend on merging the inner Text.
+                    modifier = Modifier.clearAndSetSemantics {
+                        contentDescription = etiqueta
+                        role = Role.Button
+                        onClick(label = etiqueta) { onAnadirValoracion(state.centro); true }
+                    },
                 )
             }
         },
@@ -199,21 +212,25 @@ private fun DetailLista(
     onBloquear: (Valoracion) -> Unit,
 ) {
     val centro = state.centro
-    var denunciando by remember { mutableStateOf<Valoracion?>(null) }
-    var bloqueando by remember { mutableStateOf<Valoracion?>(null) }
+    // Only the author's uid, saveable: the dialogs survive a rotation (QA 1.0.5, finding 9).
+    var denunciandoUid by rememberSaveable { mutableStateOf<String?>(null) }
+    var bloqueandoUid by rememberSaveable { mutableStateOf<String?>(null) }
+    val denunciando = denunciandoUid?.let { uid -> state.resenas.firstOrNull { it.uid == uid } }
+    val bloqueando = bloqueandoUid?.let { uid -> state.resenas.firstOrNull { it.uid == uid } }
+    fun cerrarDialogos() { denunciandoUid = null; bloqueandoUid = null }
     bloqueando?.let { v ->
         AlertDialog(
-            onDismissRequest = { bloqueando = null },
+            onDismissRequest = ::cerrarDialogos,
             title = { Text("¿Bloquear a ${v.alias}?") },
             text = { Text("Dejarás de ver sus reseñas en Valoralo. Puedes desbloquearlo cuando quieras en Mi cuenta.") },
-            confirmButton = { TextButton(onClick = { onBloquear(v); bloqueando = null }) { Text("Bloquear") } },
-            dismissButton = { TextButton(onClick = { bloqueando = null }) { Text("Cancelar") } },
+            confirmButton = { TextButton(onClick = { onBloquear(v); cerrarDialogos() }) { Text("Bloquear") } },
+            dismissButton = { TextButton(onClick = ::cerrarDialogos) { Text("Cancelar") } },
         )
     }
     denunciando?.let { v ->
         DialogoDenuncia(
-            onDenunciar = { motivo -> onDenunciar(v.uid, motivo); denunciando = null },
-            onCancelar = { denunciando = null },
+            onDenunciar = { motivo -> onDenunciar(v.uid, motivo); cerrarDialogos() },
+            onCancelar = ::cerrarDialogos,
         )
     }
     LazyColumn(
@@ -261,8 +278,8 @@ private fun DetailLista(
             items(state.resenas, key = { it.uid }) { v ->
                 TarjetaResena(
                     v,
-                    onDenunciar = { if (state.uidActual == null) onIniciarSesion() else denunciando = v },
-                    onBloquear = { if (state.uidActual == null) onIniciarSesion() else bloqueando = v },
+                    onDenunciar = { if (state.uidActual == null) onIniciarSesion() else denunciandoUid = v.uid },
+                    onBloquear = { if (state.uidActual == null) onIniciarSesion() else bloqueandoUid = v.uid },
                     like = state.likes[v.uid] ?: EstadoLike(false, v.nLikes),
                     onLike = { onLike(v) },
                 )
@@ -462,7 +479,7 @@ private fun Valoracion.etiquetaParaElAutor(): String? = when (estado) {
 
 @Composable
 private fun DialogoDenuncia(onDenunciar: (MotivoDenuncia) -> Unit, onCancelar: () -> Unit) {
-    var motivo by remember { mutableStateOf<MotivoDenuncia?>(null) }
+    var motivo by rememberSaveable { mutableStateOf<MotivoDenuncia?>(null) }
     AlertDialog(
         onDismissRequest = onCancelar,
         title = { Text("Denunciar reseña") },

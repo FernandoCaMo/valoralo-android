@@ -29,7 +29,8 @@ import dagger.hilt.components.SingletonComponent
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
 
-    // The sample data (FakeCentroRepository) is kept for tests and previews.
+    // The sample data (FakeCentroRepository, DatosPrueba) lives in the test sources (app/src/test), with
+    // fictional centros and generic aliases (QA 1.0.5, finding 19).
     @Binds
     abstract fun bindCentroRepository(impl: CentroRepositoryImpl): CentroRepository
 

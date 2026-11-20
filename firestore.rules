@@ -101,14 +101,41 @@ service cloud.firestore {
       function condicionesVigentes() {
         return '2026-11';
       }
-      // The profile is created, and the alias changed, only by the functions crearPerfil and
-      // cambiarAlias: the alias is public and is validated on the server (functions/src/alias.ts:
-      // format, contact data, reserved words, insults). QA 1.0.5, findings 2 and 13.
-      allow create: if false;
-      // Afterwards the app may only accept the terms in force and switch rol between ESTUDIANTE
-      // and OTRO (never to or from DOCENTE). Reviews already written keep their rolAutor.
+      // Public alias (QA 1.0.5, findings 2 and 13). From 1.0.6 the app creates the profile and
+      // changes the alias only through the functions crearPerfil and cambiarAlias
+      // (functions/src/alias.ts: format, contact data, reserved words, insults).
+      //
+      // TRANSITION while 1.0.4/1.0.5 are installed (they write usuarios/{uid} directly): the app may
+      // still create the profile and change the alias, but only with an alias that passes the same
+      // format, contact and reserved-word checks as alias.ts, here as regular expressions. Insults
+      // can't be checked here: publicarValoracion refuses to publish with an alias that has them, so
+      // they never become public. Once every user is on ≥ 1.0.6: `allow create: if false;` and drop
+      // 'alias' from the update below (docs/decisiones.md, 1.0.6).
+      function aliasPermitido(alias) {
+        let letras = alias.lower().replace('[^a-zñáéíóúü0-9@$]', '');
+        return alias is string && alias.size() >= 3 && alias.size() <= 30
+          && alias.matches('^[\\p{L}\\p{N} ._-]+$')
+          // No phone numbers (6 or more digits) and no links.
+          && !alias.matches('.*([0-9].*){6,}')
+          && !alias.lower().matches('.*(^|[^a-z0-9])www([^a-z0-9]|$).*|.*https?.*|.*[a-z0-9]\\.(com|es|net|org|eu|info|io|me|app|tk|xyz|link|ly)([^a-z].*|$)')
+          // Reserved words, ignoring accents, capitals, separators and the usual leet.
+          && !letras.matches('.*(d[o0]c[eé3]nt[eé3]|v[eé3]r[iíl1]f[iíl1]c[aá4@]d|m[o0]d[eé3]r[aá4@]d[o0]r|m[o0]d[eé3]r[aá4@]c[iíl1][oó0]n|[aá4@]dm[iíl1]n|v[aá4@]l[o0]r[aá4@]l[o0]|j[uú]nt[aá4@]d[eé3][aá4@]nd[aá4@]l[uú]c[iíl1][aá4@]|c[o0]ns[eé3]j[eé3]r[iíl1][aá4@]|s[o0]p[o0]rt[eé3]|[o0]f[iíl1]c[iíl1][aá4@]l).*');
+      }
+      allow create: if esPropio()
+        && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
+        && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
+        && request.resource.data.condiciones == condicionesVigentes()
+        && aliasPermitido(request.resource.data.alias)
+        && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']
+        && request.resource.data.verificado == false
+        && request.resource.data.mayorDe14 == true
+        && request.resource.data.fechaAlta == request.time;
+      // Afterwards: alias (transition, see above), accepting the terms in force, and rol only between
+      // ESTUDIANTE and OTRO (never to or from DOCENTE). Reviews already written keep their rolAutor.
       allow update: if esPropio()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rol', 'condiciones'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias', 'rol', 'condiciones'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['alias'])
+            || aliasPermitido(request.resource.data.alias))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['condiciones'])
             || request.resource.data.condiciones == condicionesVigentes())
         && (request.resource.data.rol == resource.data.rol

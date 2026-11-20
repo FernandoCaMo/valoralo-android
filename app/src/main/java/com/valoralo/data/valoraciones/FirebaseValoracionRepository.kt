@@ -1,11 +1,13 @@
 package com.valoralo.data.valoraciones
 
 import android.util.Log
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Source
 import com.google.firebase.functions.FirebaseFunctions
 import com.google.firebase.functions.FirebaseFunctionsException
+import com.valoralo.data.red.Comprobacion
+import com.valoralo.data.red.LlamadasFunciones
 import com.valoralo.data.remote.firestore.aFragmentos
 import com.valoralo.data.remote.firestore.aValoracion
 import com.valoralo.domain.model.OrigenRevision
@@ -27,6 +29,7 @@ class FirebaseValoracionRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
     private val functions: FirebaseFunctions,
+    private val llamadas: LlamadasFunciones,
 ) : ValoracionRepository {
 
     private fun uidActual(): Flow<String?> = callbackFlow {
@@ -51,7 +54,22 @@ class FirebaseValoracionRepository @Inject constructor(
     }
 
     override suspend fun publicar(codigo: String, formulario: FormularioValoracion): ResultadoPublicacion {
-        val datos = llamar("publicarValoracion", formulario.paraEnviar(codigo)) as? Map<*, *>
+        val uid = auth.currentUser?.uid ?: throw ErrorPublicacion(TipoErrorPublicacion.SIN_SESION)
+        val enviado = formulario.paraEnviar(codigo)
+        val datos = llamadas.llamar(
+            "publicarValoracion", enviado,
+            mensajeIncierto = "Se ha cortado la conexión y no sabemos si tu valoración se ha guardado. " +
+                "Cuando vuelvas a tener red, abre el centro para comprobarlo; tu texto sigue aquí.",
+        ) {
+            // Connection lost while publishing: is the review on the server with what was sent?
+            val guardada = db.document("centros/$codigo/valoraciones/$uid").get(Source.SERVER).await()
+            if (coincideConGuardada(enviado, guardada.data)) {
+                val revision = guardada.get("revision") as? Map<*, *>
+                Comprobacion.Hecha(mapOf("estado" to guardada.getString("estado"), "fragmentos" to revision?.get("fragmentos"), "origen" to revision?.get("origen")))
+            } else {
+                Comprobacion.NoHecha
+            }
+        } as? Map<*, *>
         return if (datos?.get("estado") == "EN_REVISION") {
             ResultadoPublicacion.EnRevision(
                 aFragmentos(datos["fragmentos"]),
@@ -75,20 +93,19 @@ class FirebaseValoracionRepository @Inject constructor(
     }
 
     override suspend fun denunciar(codigo: String, autorUid: String, motivo: MotivoDenuncia) {
-        llamar("denunciarValoracion", mapOf("codigo" to codigo, "autorUid" to autorUid, "motivo" to motivo.name))
-    }
-
-    private suspend fun llamar(funcion: String, datos: Map<String, Any>): Any? = try {
-        functions.getHttpsCallable(funcion).call(datos).await().data
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: FirebaseFunctionsException) {
-        throw errorDeFuncion(e.code.name, e.message, e.details)
-    } catch (e: FirebaseNetworkException) {
-        throw ErrorPublicacion(TipoErrorPublicacion.SIN_CONEXION)
-    } catch (e: Exception) {
-        Log.w(TAG, "Error llamando a $funcion", e)
-        throw ErrorPublicacion(TipoErrorPublicacion.OTRO)
+        val datos = mapOf("codigo" to codigo, "autorUid" to autorUid, "motivo" to motivo.name)
+        llamadas.llamar(
+            "denunciarValoracion", datos,
+            mensajeIncierto = "Se ha cortado la conexión y no sabemos si se ha enviado la denuncia. Inténtalo de nuevo cuando vuelvas a tener red.",
+        ) {
+            // Reporting is idempotent: sending it again tells us. "Ya has denunciado" = it had arrived.
+            try {
+                functions.getHttpsCallable("denunciarValoracion").call(datos).await()
+                Comprobacion.Hecha()
+            } catch (e: FirebaseFunctionsException) {
+                if (e.code == FirebaseFunctionsException.Code.ALREADY_EXISTS) Comprobacion.Hecha() else throw e
+            }
+        }
     }
 
     private companion object {

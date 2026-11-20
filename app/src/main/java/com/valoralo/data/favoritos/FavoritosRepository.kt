@@ -26,7 +26,7 @@ const val MAX_FAVORITOS = 100
 enum class ErrorFavorito(val mensaje: String) {
     SIN_SESION("Inicia sesión para guardar centros en favoritos."),
     LIMITE("Puedes guardar como máximo $MAX_FAVORITOS centros en favoritos."),
-    OTRO("No se ha podido guardar. Inténtalo de nuevo."),
+    OTRO(com.valoralo.data.red.MENSAJE_ERROR_GENERICO),
 }
 
 class ExcepcionFavorito(val error: ErrorFavorito) : Exception(error.mensaje)

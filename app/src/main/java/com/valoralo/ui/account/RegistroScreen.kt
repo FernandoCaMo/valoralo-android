@@ -107,7 +107,8 @@ fun RegistroScreen(
             }
             Campo(
                 s.alias, viewModel::onAlias, "Alias", s.errores[CampoRegistro.ALIAS], KeyboardType.Text,
-                ayuda = "Es el nombre que verán los demás en tus reseñas. No uses tu nombre completo.",
+                ayuda = "Es el nombre que verán los demás en tus reseñas. No uses tu nombre completo. " +
+                    "(${s.alias.length}/${com.valoralo.domain.usecase.ALIAS_MAX})",
             )
 
             // Birth date: only used to check the minimum age; it is not stored.

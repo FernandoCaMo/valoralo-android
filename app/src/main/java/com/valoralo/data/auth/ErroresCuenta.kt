@@ -1,6 +1,8 @@
 package com.valoralo.data.auth
 
 import com.valoralo.BuildConfig
+import com.valoralo.data.red.MENSAJE_ERROR_GENERICO
+import com.valoralo.data.red.MENSAJE_SIN_CONEXION
 
 enum class TipoErrorCuenta(val mensaje: String) {
     CREDENCIALES("El correo o la contraseña no son correctos."),
@@ -10,30 +12,40 @@ enum class TipoErrorCuenta(val mensaje: String) {
     DEMASIADOS_INTENTOS("Demasiados intentos. Espera unos minutos y vuelve a probar."),
     CUENTA_DESACTIVADA("Esta cuenta está desactivada."),
     REQUIERE_LOGIN_RECIENTE("Por seguridad, cierra sesión, vuelve a entrar y repite la operación."),
-    SIN_CONEXION("No hay conexión. Comprueba tu red e inténtalo de nuevo."),
+    SIN_CONEXION(MENSAJE_SIN_CONEXION),
+    /** Rejected by our functions (e.g. the alias): the server's own text is shown. */
+    RECHAZADO_SERVIDOR(MENSAJE_ERROR_GENERICO),
+    /** Connection lost while saving and we couldn't check whether it was saved. */
+    INCIERTO("Se ha cortado la conexión y no sabemos si se ha guardado. Compruébalo cuando vuelvas a tener red."),
     GOOGLE_NO_CONFIGURADO("El inicio de sesión con Google todavía no está disponible."),
     GOOGLE_CANCELADO("Has cancelado el inicio de sesión con Google."),
     GOOGLE_FALLO("No se ha podido iniciar sesión con Google. Inténtalo de nuevo o entra con tu correo."),
     MENOR_DE_14("Valoralo es para mayores de 14 años. Hemos eliminado la cuenta."),
-    DESCONOCIDO("No se ha podido completar la operación. Inténtalo de nuevo."),
+    DESCONOCIDO(MENSAJE_ERROR_GENERICO),
 }
 
 /**
- * The message is always the user text. Only debug builds ([mostrarDetalle]) append the technical cause;
- * in release it goes to Crashlytics ([InformeErrores]) and never to the screen.
+ * The message is always the user text: [mensajeUsuario] (a text our functions wrote for the user) or the
+ * type's. Only debug builds ([mostrarDetalle]) append the technical cause; in release it goes to
+ * Crashlytics ([InformeErrores]) and never to the screen. [campo] = form field the server rejected ("alias").
  */
 class ErrorCuenta(
     val tipo: TipoErrorCuenta,
     causa: Throwable? = null,
     mostrarDetalle: Boolean = BuildConfig.DEBUG,
-) : Exception(textoError(tipo, causa, mostrarDetalle), causa) {
+    mensajeUsuario: String? = null,
+    val campo: String? = null,
+) : Exception(textoError(tipo, causa, mostrarDetalle, mensajeUsuario), causa) {
     val detalle: DetalleError? = causa?.let(::detalleError)
 }
 
-internal fun textoError(tipo: TipoErrorCuenta, causa: Throwable?, mostrarDetalle: Boolean): String {
-    if (!mostrarDetalle || causa == null || tipo == TipoErrorCuenta.GOOGLE_CANCELADO) return tipo.mensaje
+internal fun textoError(tipo: TipoErrorCuenta, causa: Throwable?, mostrarDetalle: Boolean, mensajeUsuario: String? = null): String {
+    val texto = mensajeUsuario ?: tipo.mensaje
+    // Errors our server wrote for the user, and the network ones, carry no technical cause worth showing.
+    val sinDetalle = tipo in setOf(TipoErrorCuenta.GOOGLE_CANCELADO, TipoErrorCuenta.RECHAZADO_SERVIDOR, TipoErrorCuenta.INCIERTO)
+    if (!mostrarDetalle || causa == null || sinDetalle) return texto
     val d = detalleError(causa)
-    return "${tipo.mensaje}\n\n[debug] ${d.codigoVisible}\n${d.resumen}"
+    return "$texto\n\n[debug] ${d.codigoVisible}\n${d.resumen}"
 }
 
 /** Technical cause of an account error, for Crashlytics and debug builds. Never personal data. */

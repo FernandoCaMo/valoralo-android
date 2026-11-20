@@ -1,5 +1,7 @@
 package com.valoralo.data.valoraciones
 
+import com.valoralo.data.red.MENSAJE_ERROR_GENERICO
+import com.valoralo.data.red.MENSAJE_SIN_CONEXION
 import com.valoralo.data.remote.firestore.aFragmentos
 import com.valoralo.domain.model.Fragmento
 import com.valoralo.domain.model.OrigenRevision
@@ -21,16 +23,23 @@ enum class TipoErrorPublicacion(val mensaje: String) {
     TEXTO_NO_PERMITIDO("Tu texto tiene nombres de personas, insultos o datos personales. Corrígelo para publicar."),
     DATOS_NO_VALIDOS("Revisa los datos de la valoración."),
     SIN_SESION("Inicia sesión para continuar."),
-    SIN_CONEXION("No hay conexión. Inténtalo de nuevo."),
+    /** No network before sending: nothing was sent. */
+    SIN_CONEXION(MENSAJE_SIN_CONEXION),
+    /** The connection was lost while sending and, once back, we checked: it wasn't done. */
+    CORTE_SIN_HACER("Se ha cortado la conexión y no se ha completado. Inténtalo de nuevo."),
+    /** The connection was lost while sending and we couldn't check whether it was done (callers give a specific text). */
+    INCIERTO("Se ha cortado la conexión y no sabemos si se ha completado. Compruébalo cuando vuelvas a tener red."),
     YA_DENUNCIADA("Ya has denunciado esta reseña."),
     CONDICIONES("Acepta las condiciones de uso antes de publicar."),
-    OTRO("No se ha podido completar. Inténtalo de nuevo."),
+    OTRO(MENSAJE_ERROR_GENERICO),
 }
 
 class ErrorPublicacion(
     val tipo: TipoErrorPublicacion,
     mensaje: String = tipo.mensaje,
     val fragmentos: List<Fragmento> = emptyList(),
+    /** Form field the server rejected ("alias"…), when it says so. */
+    val campo: String? = null,
 ) : Exception(mensaje)
 
 enum class MotivoDenuncia(val etiqueta: String) {
@@ -55,7 +64,10 @@ fun errorDeFuncion(codigo: String, mensajeServidor: String?, detalles: Any?): Er
         "INVALID_ARGUMENT" -> if (d?.get("motivo") == "FILTRO") {
             ErrorPublicacion(TipoErrorPublicacion.TEXTO_NO_PERMITIDO, fragmentos = aFragmentos(d["fragmentos"]))
         } else {
-            ErrorPublicacion(TipoErrorPublicacion.DATOS_NO_VALIDOS, mensaje ?: TipoErrorPublicacion.DATOS_NO_VALIDOS.mensaje)
+            ErrorPublicacion(
+                TipoErrorPublicacion.DATOS_NO_VALIDOS, mensaje ?: TipoErrorPublicacion.DATOS_NO_VALIDOS.mensaje,
+                campo = d?.get("campo") as? String,
+            )
         }
         "UNAUTHENTICATED" -> ErrorPublicacion(TipoErrorPublicacion.SIN_SESION)
         "ALREADY_EXISTS" -> ErrorPublicacion(TipoErrorPublicacion.YA_DENUNCIADA, mensaje ?: TipoErrorPublicacion.YA_DENUNCIADA.mensaje)

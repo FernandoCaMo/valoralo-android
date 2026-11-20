@@ -7,9 +7,13 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthException
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
-import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
+import com.valoralo.data.red.Comprobacion
+import com.valoralo.data.red.LlamadasFunciones
+import com.valoralo.data.valoraciones.ErrorPublicacion
+import com.valoralo.data.valoraciones.TipoErrorPublicacion
 import com.valoralo.domain.model.CONDICIONES_VIGENTES
 import com.valoralo.domain.model.PerfilNuevo
 import com.valoralo.domain.model.Rol
@@ -37,6 +41,7 @@ import javax.inject.Singleton
 class FirebaseCuentaRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
+    private val llamadas: LlamadasFunciones,
 ) : CuentaRepository {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -97,8 +102,10 @@ class FirebaseCuentaRepository @Inject constructor(
         try {
             escribirPerfil(usuario.uid, perfil)
         } catch (e: Exception) {
-            // Don't leave an Auth account without profile behind.
-            runCatching { usuario.delete().await() }
+            // Don't leave an Auth account without profile behind — unless we don't know whether the
+            // profile was created (connection lost): then the account stays, and if the profile is
+            // missing the app asks to complete it.
+            if (!(e is ErrorCuenta && e.tipo == TipoErrorCuenta.INCIERTO)) runCatching { usuario.delete().await() }
             throw e
         }
     }
@@ -118,8 +125,13 @@ class FirebaseCuentaRepository @Inject constructor(
         Unit
     }
 
+    /** Through the function cambiarAlias: the alias is public and is validated on the server. */
     override suspend fun cambiarAlias(alias: String) = traducirErrores {
-        perfil(usuarioActual().uid).update("alias", normalizarAlias(alias)).await()
+        val uid = usuarioActual().uid
+        val nuevo = normalizarAlias(alias)
+        llamarFuncion("cambiarAlias", mapOf("alias" to nuevo)) {
+            if (perfil(uid).get(Source.SERVER).await().getString("alias") == nuevo) Comprobacion.Hecha() else Comprobacion.NoHecha
+        }
         Unit
     }
 
@@ -153,18 +165,38 @@ class FirebaseCuentaRepository @Inject constructor(
         Unit
     }
 
-    private suspend fun escribirPerfil(uid: String, perfil: PerfilNuevo) {
-        perfil(uid).set(
+    /**
+     * Through the function crearPerfil (the rules no longer let the app create usuarios/{uid}): it validates
+     * the alias and writes { alias, rol, verificado: false, mayorDe14: true, fechaAlta, condiciones }.
+     */
+    private suspend fun escribirPerfil(uid: String, nuevo: PerfilNuevo) {
+        llamarFuncion(
+            "crearPerfil",
             mapOf(
-                "alias" to normalizarAlias(perfil.alias),
-                "rol" to perfil.rol.name,
-                "verificado" to false,
+                "alias" to normalizarAlias(nuevo.alias),
+                "rol" to nuevo.rol.name,
                 "mayorDe14" to true,
-                "fechaAlta" to FieldValue.serverTimestamp(),
                 // Accepted with the checkbox of the sign-up form.
                 "condiciones" to CONDICIONES_VIGENTES,
             ),
-        ).await()
+        ) {
+            if (perfil(uid).get(Source.SERVER).await().exists()) Comprobacion.Hecha() else Comprobacion.NoHecha
+        }
+    }
+
+    /** [LlamadasFunciones] with account errors: the server's texts (alias…) and honest network messages. */
+    private suspend fun llamarFuncion(nombre: String, datos: Map<String, Any?>, comprobar: suspend () -> Comprobacion) {
+        try {
+            llamadas.llamar(nombre, datos, mensajeIncierto = TipoErrorCuenta.INCIERTO.mensaje, comprobar = comprobar)
+        } catch (e: ErrorPublicacion) {
+            throw when (e.tipo) {
+                TipoErrorPublicacion.SIN_CONEXION -> ErrorCuenta(TipoErrorCuenta.SIN_CONEXION)
+                TipoErrorPublicacion.INCIERTO -> ErrorCuenta(TipoErrorCuenta.INCIERTO)
+                TipoErrorPublicacion.CORTE_SIN_HACER -> ErrorCuenta(TipoErrorCuenta.RECHAZADO_SERVIDOR, mensajeUsuario = e.message)
+                TipoErrorPublicacion.SIN_SESION -> ErrorCuenta(TipoErrorCuenta.REQUIERE_LOGIN_RECIENTE)
+                else -> ErrorCuenta(TipoErrorCuenta.RECHAZADO_SERVIDOR, e, mensajeUsuario = e.message, campo = e.campo)
+            }
+        }
     }
 
     override suspend fun aceptarCondiciones() = traducirErrores {

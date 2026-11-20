@@ -2,16 +2,17 @@ package com.valoralo.data.verificacion
 
 import android.net.Uri
 import android.util.Log
-import com.google.firebase.FirebaseNetworkException
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.functions.FirebaseFunctions
-import com.google.firebase.functions.FirebaseFunctionsException
+import com.google.firebase.firestore.Source
 import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.StorageMetadata
+import com.valoralo.data.red.Comprobacion
+import com.valoralo.data.red.Conectividad
+import com.valoralo.data.red.LlamadasFunciones
+import com.valoralo.data.red.esFalloDeRed
 import com.valoralo.data.valoraciones.ErrorPublicacion
 import com.valoralo.data.valoraciones.TipoErrorPublicacion
-import com.valoralo.data.valoraciones.errorDeFuncion
 import com.valoralo.domain.model.MiVerificacion
 import com.valoralo.domain.usecase.normalizarCsv
 import kotlinx.coroutines.CancellationException
@@ -38,8 +39,9 @@ interface VerificacionRepository {
 class FirebaseVerificacionRepository @Inject constructor(
     private val auth: FirebaseAuth,
     private val db: FirebaseFirestore,
-    private val functions: FirebaseFunctions,
     private val storage: FirebaseStorage,
+    private val llamadas: LlamadasFunciones,
+    private val conectividad: Conectividad,
 ) : VerificacionRepository {
 
     private fun uidActual(): Flow<String?> = callbackFlow {
@@ -65,25 +67,33 @@ class FirebaseVerificacionRepository @Inject constructor(
 
     override suspend fun solicitar(nombre: String, csv: String, pdf: Uri?) {
         val uid = auth.currentUser?.uid ?: throw ErrorPublicacion(TipoErrorPublicacion.SIN_SESION)
-        try {
-            val ruta = pdf?.let { subirPdf(uid, it) }
-            val datos = buildMap<String, Any> {
-                put("nombre", nombre.trim())
-                put("csv", normalizarCsv(csv))
-                ruta?.let { put("pdfPath", it) }
-            }
-            functions.getHttpsCallable("solicitarVerificacion").call(datos).await()
+        if (!conectividad.conectado.value) throw ErrorPublicacion(TipoErrorPublicacion.SIN_CONEXION)
+        val ruta = try {
+            pdf?.let { subirPdf(uid, it) }
         } catch (e: CancellationException) {
             throw e
-        } catch (e: ErrorPublicacion) {
-            throw e
-        } catch (e: FirebaseFunctionsException) {
-            throw errorDeFuncion(e.code.name, e.message, e.details)
-        } catch (e: FirebaseNetworkException) {
-            throw ErrorPublicacion(TipoErrorPublicacion.SIN_CONEXION)
         } catch (e: Exception) {
-            Log.w(TAG, "Error solicitando la verificación", e)
-            throw ErrorPublicacion(TipoErrorPublicacion.OTRO)
+            Log.w(TAG, "Error subiendo el PDF", e)
+            // The request is only created after the upload: if it fails, nothing was sent.
+            throw ErrorPublicacion(
+                if (esFalloDeRed(e, conectividad.conectado.value)) TipoErrorPublicacion.CORTE_SIN_HACER else TipoErrorPublicacion.OTRO,
+            )
+        }
+        val datos = buildMap<String, Any> {
+            put("nombre", nombre.trim())
+            put("csv", normalizarCsv(csv))
+            ruta?.let { put("pdfPath", it) }
+        }
+        val inicio = System.currentTimeMillis()
+        llamadas.llamar(
+            "solicitarVerificacion", datos,
+            mensajeIncierto = "Se ha cortado la conexión y no sabemos si se ha enviado tu solicitud. " +
+                "Cuando vuelvas a tener red, entra de nuevo en «Soy docente» para comprobarlo.",
+        ) {
+            // A pending request created now (give or take clock differences) means it arrived.
+            val v = db.document("verificaciones/$uid").get(Source.SERVER).await()
+            val fecha = v.getTimestamp("fechaSolicitud")?.toDate()?.time ?: 0L
+            if (v.getString("estado") == "PENDIENTE" && fecha >= inicio - MARGEN_RELOJ_MS) Comprobacion.Hecha() else Comprobacion.NoHecha
         }
     }
 
@@ -97,5 +107,6 @@ class FirebaseVerificacionRepository @Inject constructor(
 
     private companion object {
         const val TAG = "Verificacion"
+        const val MARGEN_RELOJ_MS = 2 * 60 * 1000L
     }
 }

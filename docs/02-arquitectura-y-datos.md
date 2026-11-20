@@ -55,11 +55,18 @@ Cálculo de las notas (lo hace onValoracionWrite; solo cuentan las reseñas PUBL
 usuarios/{uid}
   alias, rol: "DOCENTE" | "ESTUDIANTE" | "OTRO", verificado: Boolean,
   fechaAlta, mayorDe14: true, centroActualCodigo?   // rol/verificado: solo backend
-  // Reglas: el usuario crea su propio documento con exactamente alias, rol (ESTUDIANTE u OTRO),
-  // verificado: false, mayorDe14: true y fechaAlta = hora del servidor; después solo puede cambiar
-  // el alias (3–30 caracteres), el rol entre ESTUDIANTE y OTRO (nunca a DOCENTE ni desde DOCENTE)
-  // y borrar el documento (eliminar cuenta). Solo lee el suyo. Las reseñas ya escritas mantienen su rolAutor.
+  // Desde la 1.0.6 el documento lo crea la función crearPerfil (alias, rol ESTUDIANTE u OTRO,
+  // verificado: false, mayorDe14: true, fechaAlta del servidor, condiciones) y el alias solo lo cambia
+  // la función cambiarAlias: el alias es público y se valida en el servidor (functions/src/alias.ts:
+  // 3–30 caracteres, sin teléfonos, correos ni enlaces, sin palabras que suplanten un rol, la moderación
+  // o la app, sin insultos). En transición (1.0.4/1.0.5), las reglas aún aceptan la escritura directa
+  // con un alias que pase el formato, el contacto y las palabras reservadas (docs/decisiones.md, 1.0.6).
+  // La app puede cambiar el rol entre ESTUDIANTE y OTRO (nunca a DOCENTE ni desde DOCENTE), aceptar las
+  // condiciones vigentes y borrar el documento (eliminar cuenta). Solo lee el suyo. Las reseñas ya
+  // escritas mantienen su rolAutor y su alias.
   // La fecha de nacimiento se pide para comprobar la edad, pero no se guarda.
+  // usuarios/{uid}/limites/{likes|denuncias} { inicio, n }: contadores por hora (likes los escribe la app
+  // con reglas; denuncias, la función denunciarValoracion; límites en config/likes y config/denuncias).
 
 centros/{codigo}/valoraciones/{uid}      // id = uid → 1 por usuario y centro
   uid, alias, rolAutor, verificado, fecha (alta), actualizada, editada,
