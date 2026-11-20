@@ -24,5 +24,10 @@ val NeutroVar50 = Color(0xFF73777F)
 val NeutroVar80 = Color(0xFFC2C7CF)
 val NeutroVar90 = Color(0xFFDEE3EB)
 
+// Student review border: terracotta (light) / peach (dark). Blue–orange is the pair best told apart with the
+// common colour-vision deficiencies, and it is neither the star yellow nor the green of the verified badge.
+val Terracota40 = Color(0xFFA0461A)
+val Melocoton80 = Color(0xFFFFB68F)
+
 /** Star / rating colour, readable on both light and dark surfaces. */
 val Estrella = Color(0xFFF2A900)

@@ -35,7 +35,10 @@ import androidx.compose.material.icons.filled.Verified
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import com.valoralo.ui.theme.bordeRol
+import com.valoralo.ui.theme.colorTextoRol
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -281,8 +284,13 @@ private fun TarjetaDestacada(r: Destacada, corazon: LikeDestacada?, onLike: () -
         Rol.OTRO -> "Otro"
     }
     val fecha = r.fecha?.format(FORMATO_FECHA)
-    ElevatedCard(
+    // An elevated card (as before) with the role border.
+    Card(
         onClick = { onVerCentro(r.codigo) },
+        colors = CardDefaults.elevatedCardColors(),
+        elevation = CardDefaults.elevatedCardElevation(),
+        shape = CardDefaults.elevatedShape,
+        border = bordeRol(r.rol),
         modifier = Modifier.fillMaxWidth().height(ALTO_TARJETA).semantics(mergeDescendants = true) {
             contentDescription = "${r.nombreCentro}. Nota ${formatearNota(r.nota)} de 5. «${r.extracto}». $rol${fecha?.let { ", $it" }.orEmpty()}. Abrir el centro."
         },
@@ -310,9 +318,9 @@ private fun TarjetaDestacada(r: Destacada, corazon: LikeDestacada?, onLike: () -
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (r.rol == Rol.DOCENTE && r.verificado) {
-                    Icon(Icons.Filled.Verified, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    Icon(Icons.Filled.Verified, contentDescription = null, tint = colorTextoRol(r.rol), modifier = Modifier.size(16.dp))
                 }
-                Text(rol, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(rol, style = MaterialTheme.typography.labelLarge, color = colorTextoRol(r.rol))
                 if (fecha != null) {
                     Text(
                         "· $fecha",

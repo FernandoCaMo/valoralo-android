@@ -32,6 +32,7 @@ import com.valoralo.domain.model.Valoracion
 import com.valoralo.domain.usecase.EstadoLike
 import com.valoralo.ui.components.BotonLike
 import com.valoralo.ui.components.Estrellas
+import com.valoralo.ui.theme.bordeRol
 import java.time.format.DateTimeFormatter
 
 private val FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -52,7 +53,7 @@ fun TarjetaResena(
     like: EstadoLike = EstadoLike(dado = false, n = valoracion.nLikes),
     onLike: (() -> Unit)? = null,
 ) {
-    OutlinedCard(modifier.fillMaxWidth()) {
+    OutlinedCard(modifier.fillMaxWidth(), border = bordeRol(valoracion.rolAutor)) {
         Column(Modifier.padding(16.dp)) {
             etiquetaEstado?.let {
                 Text(

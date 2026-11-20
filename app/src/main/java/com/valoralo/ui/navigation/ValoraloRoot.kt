@@ -166,8 +166,14 @@ fun ValoraloRoot(
             navController = navController,
             startDestination = Rutas.HOME,
             modifier = Modifier.padding(padding),
+            enterTransition = entradaNavegacion,
+            exitTransition = salidaNavegacion,
+            popEnterTransition = entradaNavegacion,
+            popExitTransition = salidaNavegacion,
         ) {
+            val irA: (Pestana) -> Unit = { navController.irAPestana(it) }
             composable(Rutas.HOME) {
+              RaizPestana(Pestana.INICIO, irA) {
                 InicioScreen(
                     acciones = acciones,
                     onVerCentro = { navController.navigate(Rutas.centro(it)) },
@@ -179,9 +185,12 @@ fun ValoraloRoot(
                     },
                     onAviso = ::avisar,
                 )
+              }
             }
             composable(Rutas.SEARCH) {
-                BuscarScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones)
+                RaizPestana(Pestana.BUSCAR, irA) {
+                    BuscarScreen(onVerCentro = { navController.navigate(Rutas.centro(it)) }, acciones = acciones)
+                }
             }
             composable(
                 Rutas.COMPARAR,
@@ -228,13 +237,16 @@ fun ValoraloRoot(
                 )
             }
             composable(Rutas.FAVORITOS) {
+              RaizPestana(Pestana.FAVORITOS, irA) {
                 FavoritesScreen(
                     acciones = acciones,
                     onVerCentro = { navController.navigate(Rutas.centro(it)) },
                     onIniciarSesion = { navController.navigate(Rutas.LOGIN) },
                 )
+              }
             }
             composable(Rutas.CUENTA) {
+              RaizPestana(Pestana.CUENTA, irA) {
                 AccountScreen(
                     onIniciarSesion = { navController.navigate(Rutas.LOGIN) },
                     onCrearCuenta = { navController.navigate(Rutas.REGISTRO) },
@@ -243,6 +255,7 @@ fun ValoraloRoot(
                     onVerificar = { navController.navigate(Rutas.VERIFICAR_DOCENTE) },
                     onAviso = ::avisar,
                 )
+              }
             }
             composable(Rutas.VERIFICAR_DOCENTE) { VerificarDocenteScreen(onVolver = { navController.popBackStack() }) }
             composable(Rutas.ACERCA_DE) { AboutScreen(onVolver = { navController.popBackStack() }) }
