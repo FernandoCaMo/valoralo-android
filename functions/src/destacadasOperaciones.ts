@@ -5,6 +5,7 @@
  */
 import { FieldValue, Firestore, Timestamp } from "firebase-admin/firestore";
 import { Candidata, claveDestacada, ConfigDestacadas, leerConfig, notaDeResena, seleccionar } from "./destacadas";
+import { leerConfigDenuncias, RUTA_CONFIG_DENUNCIAS } from "./denuncias";
 
 export const RUTA_DESTACADAS = "destacadas/actual";
 export const RUTA_CONFIG = "config/destacadas";
@@ -17,6 +18,7 @@ export const diaEnMadrid = (d: Date) => DIA_MADRID.format(d);
 
 export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n: number; config: ConfigDestacadas }> {
   const config = leerConfig((await db.doc(RUTA_CONFIG).get()).data());
+  const { paraRetirarDestacada } = leerConfigDenuncias((await db.doc(RUTA_CONFIG_DENUNCIAS).get()).data());
   const desde = new Date(ahora.getTime() - config.maxDias * 86400000);
 
   const desdeLikes = new Date(ahora.getTime() - config.diasLikes * 86400000);
@@ -27,7 +29,12 @@ export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n
     db.collection("denuncias").where("estado", "==", "PENDIENTE").get(),
     db.collectionGroup("likes").where("fecha", ">=", Timestamp.fromDate(desdeLikes)).get(),
   ]);
-  const denunciadas = new Set(denuncias.docs.map((d) => `${d.get("centro")}/${d.get("valoracionUid")}`));
+  // Pending reports per review; it is left out with config/denuncias.paraRetirarDestacada or more.
+  const denunciadas = new Map<string, number>();
+  for (const d of denuncias.docs) {
+    const clave = `${d.get("centro")}/${d.get("valoracionUid")}`;
+    denunciadas.set(clave, (denunciadas.get(clave) ?? 0) + 1);
+  }
 
   // Likes in the window and today (Europe/Madrid) per review: centros/{codigo}/valoraciones/{autor}/likes/{uid}.
   const hoy = diaEnMadrid(ahora);
@@ -50,7 +57,7 @@ export async function generarDestacadas(db: Firestore, ahora: Date): Promise<{ n
       codigo, uid: d.id, alias: v.alias ?? "", rolAutor: v.rolAutor ?? "OTRO", verificado: v.verificado === true,
       nota: notaDeResena(v as Parameters<typeof notaDeResena>[0]), texto: v.texto,
       fecha: aFecha(v.fecha), actualizada: aFecha(v.actualizada), estado: v.estado,
-      denunciasPendientes: denunciadas.has(`${codigo}/${d.id}`),
+      denunciasPendientes: (denunciadas.get(`${codigo}/${d.id}`) ?? 0) >= paraRetirarDestacada,
       nLikes: typeof v.nLikes === "number" ? v.nLikes : 0,
       likesVentana: enVentana.get(`${codigo}/${d.id}`) ?? 0,
       likesHoy: deHoy.get(`${codigo}/${d.id}`) ?? 0,

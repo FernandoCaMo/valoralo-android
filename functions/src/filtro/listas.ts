@@ -45,6 +45,13 @@ export const NOMBRES_AMBIGUOS = [
   "alma", "cielo", "pia", "benigno", "leal", "abril", "olivia", "triana", "macarena", "sierra", "vega", "valle",
   "nieve", "candela", "noemi", "camino", "carmelo", "loreto", "lourdes", "montserrat", "sagrario", "begoña",
   "fatima", "cristo", "salvador", "santos", "bueno", "cano", "rey", "conde", "bravo", "prado", "rio",
+  // Everyday words that are also first names (QA 1.0.5, finding 5: "Segunda evaluación…" was blocked).
+  // Never blocked on their own: OK at the start of a sentence, DUDOSO in the middle, BLOQUEADO after a
+  // title ("la profe Clara") or next to another name. Corpus: test/unit/filtro.corpus.test.ts.
+  "segunda", "segundo", "bienvenido", "bienvenida", "candido", "candida", "prudencio", "prudencia", "castillo",
+  "fortunato", "primitivo", "primitiva", "modesta", "justa", "inocencia", "placido", "placida", "ascension",
+  "presentacion", "visitacion", "patrocinio", "casto", "digna", "libertad", "olvido", "maximo", "maxima",
+  "dulce", "amable", "bella", "linda", "aurea", "clara", "serena", "marino", "julio",
 ];
 
 /** Lowercase names flagged as doubtful: only the most frequent, unambiguous ones. */

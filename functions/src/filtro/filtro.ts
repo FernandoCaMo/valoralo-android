@@ -80,14 +80,17 @@ function tokenizar(texto: string, excluidos: [number, number][]): Token[] {
     const inicio = m.index!;
     const fin = inicio + m[0].length;
     if (excluidos.some(([a, b]) => inicio < b && fin > a)) continue;
-    const antes = texto.slice(0, inicio).trimEnd();
+    const previo = texto.slice(0, inicio);
+    const antes = previo.trimEnd();
     tokens.push({
       texto: m[0],
       norma: normalizar(m[0]),
       inicio,
       fin,
       mayuscula: /^\p{Lu}/u.test(m[0]),
-      inicioFrase: antes === "" || /[.!?¡¿:\n"«(]$/.test(antes),
+      // A line break also starts a sentence (lists: "Ventajas:\nComedor…"). Checked on the text before
+      // trimming: trimEnd() removes the "\n" itself (QA 1.0.5, finding 5).
+      inicioFrase: antes === "" || /[.!?¡¿:"«(]$/.test(antes) || /\n[ \t]*$/.test(previo),
     });
   }
   return tokens;

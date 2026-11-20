@@ -56,7 +56,9 @@ describe("destacadas", () => {
     // Hidden by a moderator.
     await llamar("moderarValoracion", { codigo: CENTROS[0], uid: uids[0], accion: "OCULTAR", motivo: "OTRO" }, admin);
     await esperar(claves, (c) => !c.includes(claveDestacada(CENTROS[0], uids[0])));
-    // Reported.
+    // Reported: one report is not enough (QA 1.0.5, finding 14); two from different users take it out.
+    await llamar("denunciarValoracion", { codigo: CENTROS[1], autorUid: uids[1], motivo: "OTRO" }, await crearUsuario());
+    expect(await claves()).toContain(claveDestacada(CENTROS[1], uids[1]));
     await llamar("denunciarValoracion", { codigo: CENTROS[1], autorUid: uids[1], motivo: "OTRO" }, await crearUsuario());
     expect(await claves()).not.toContain(claveDestacada(CENTROS[1], uids[1]));
     // Deleted by its author.

@@ -65,7 +65,10 @@ export function validarFormulario(datos: unknown, departamentosDelCentro: string
     return resultado;
   });
 
-  const texto = typeof d.texto === "string" ? d.texto.trim() : "";
+  // At most one blank line between paragraphs (QA 1.0.5, finding 6: 8 line breaks left a huge gap).
+  const texto = typeof d.texto === "string"
+    ? d.texto.replace(/\r\n?/g, "\n").replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim()
+    : "";
   if (texto.length > LIMITE_TEXTO) {
     throw new ErrorValidacion("texto", "El texto puede tener como máximo 1.000 caracteres.");
   }

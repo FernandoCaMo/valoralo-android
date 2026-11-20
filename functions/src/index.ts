@@ -13,6 +13,8 @@
  *  alCambiarLike          trigger: keeps the review's nLikes counter (the app writes the likes).
  *  calcularDestacadas     hourly (europe-west1): featured reviews for Inicio (destacadas/actual).
  *  recalcularDestacadas   callable, administrators only: same, on demand from the panel.
+ *  crearPerfil            callable: creates usuarios/{uid} (alias validated here, src/alias.ts).
+ *  cambiarAlias           callable: the only way to change the public alias.
  */
 import { initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
@@ -29,7 +31,9 @@ import { defineBoolean } from "firebase-functions/params";
 import { calcularStats, Rol, ValoracionParaStats } from "./calculo";
 import { cambiosModeracion, ErrorModeracion, validarModeracion } from "./moderacion";
 import { generarDestacadas, retirarDestacada } from "./destacadasOperaciones";
-import { haAceptadoCondiciones } from "./condiciones";
+import { CONDICIONES_VIGENTES, haAceptadoCondiciones } from "./condiciones";
+import { aliasEsValido, ErrorAlias, validarAlias } from "./alias";
+import { leerConfigDenuncias, RUTA_CONFIG_DENUNCIAS, siguienteContador } from "./denuncias";
 import { construirValoracion, ErrorFiltro, PerfilAutor, ValoracionGuardada } from "./publicacion";
 import { ErrorValidacion, validarFormulario } from "./validacion";
 
@@ -90,6 +94,11 @@ export const publicarValoracion = onCall(async (request) => {
   const p = perfilSnap.data()!;
   if (!haAceptadoCondiciones(p)) {
     throw errorUsuario("failed-precondition", "Acepta las condiciones de uso antes de publicar.", { motivo: "CONDICIONES" });
+  }
+  // The alias is copied into the review (public): never publish one that breaks the rules
+  // (accounts from before src/alias.ts).
+  if (!aliasEsValido(p.alias)) {
+    throw errorUsuario("failed-precondition", "Tu alias no cumple las normas. Cámbialo en Mi cuenta antes de publicar.", { motivo: "ALIAS" });
   }
   const perfil: PerfilAutor = { uid, alias: p.alias, rol: p.rol as Rol, verificado: p.verificado === true };
 
@@ -156,8 +165,23 @@ export const denunciarValoracion = onCall(async (request) => {
     throw errorUsuario("not-found", "Esa reseña ya no está publicada.");
   }
 
-  try {
-    await db().doc(`denuncias/${codigo}_${autorUid}_${uid}`).create({
+  const config = leerConfigDenuncias((await db().doc(RUTA_CONFIG_DENUNCIAS).get()).data());
+  const denunciaRef = db().doc(`denuncias/${codigo}_${autorUid}_${uid}`);
+  const contadorRef = db().doc(`usuarios/${uid}/limites/denuncias`);
+  // The report and the hourly counter in one transaction: a repeated report doesn't count, and
+  // nobody can file more than config.maxPorHora per hour.
+  await db().runTransaction(async (tx) => {
+    const [previa, contador] = await Promise.all([tx.get(denunciaRef), tx.get(contadorRef)]);
+    if (previa.exists) throw errorUsuario("already-exists", "Ya has denunciado esta reseña.");
+    const actual = contador.exists && contador.get("inicio") instanceof Timestamp
+      ? { inicio: (contador.get("inicio") as Timestamp).toDate(), n: Number(contador.get("n")) || 0 }
+      : null;
+    const siguiente = siguienteContador(actual, new Date(), config.maxPorHora);
+    if (!siguiente) {
+      throw errorUsuario("resource-exhausted", "Has hecho muchas denuncias en poco tiempo. Prueba más tarde.");
+    }
+    tx.set(contadorRef, { inicio: Timestamp.fromDate(siguiente.inicio), n: siguiente.n });
+    tx.create(denunciaRef, {
       centro: codigo,
       valoracionUid: autorUid,
       denuncianteUid: uid,
@@ -165,17 +189,15 @@ export const denunciarValoracion = onCall(async (request) => {
       fecha: FieldValue.serverTimestamp(),
       estado: "PENDIENTE",
     });
-  } catch (e) {
-    if ((e as { code?: number }).code === 6) throw errorUsuario("already-exists", "Ya has denunciado esta reseña.");
-    throw e;
-  }
-  // Featured reviews must have no pending reports.
-  await retirarDestacada(db(), codigo, autorUid);
+  });
 
   // Only pending reports count: after a moderator approves a review, its reports are resolved.
   const total = (await db().collection("denuncias")
     .where("centro", "==", codigo).where("valoracionUid", "==", autorUid).where("estado", "==", "PENDIENTE")
     .count().get()).data().count;
+  // A featured review leaves Inicio with config.paraRetirarDestacada pending reports (different users:
+  // one report per user and review), not with a single one.
+  if (total >= config.paraRetirarDestacada) await retirarDestacada(db(), codigo, autorUid);
   if (total >= UMBRAL_DENUNCIAS) {
     await db().runTransaction(async (tx) => {
       const actual = await tx.get(valoracionRef);
@@ -186,6 +208,54 @@ export const denunciarValoracion = onCall(async (request) => {
     logger.info("Reseña a revisión por denuncias", { codigo, autorUid, total });
   }
   return { denuncias: total };
+});
+
+// ---------- Perfil: alias validado en el servidor ----------
+
+function aliasOError(valor: unknown): string {
+  try {
+    return validarAlias(valor);
+  } catch (e) {
+    if (e instanceof ErrorAlias) throw errorUsuario("invalid-argument", e.message, { campo: "alias" });
+    throw e;
+  }
+}
+
+/**
+ * Creates usuarios/{uid} after sign-up (e-mail or Google). The rules no longer let the app create it:
+ * the alias is public and is validated here (format, contact data, reserved words, insults).
+ * Same fields as before: { alias, rol (ESTUDIANTE | OTRO), verificado: false, mayorDe14: true,
+ * fechaAlta, condiciones }. The age check stays in the app (the birth date is never stored).
+ */
+export const crearPerfil = onCall(async (request) => {
+  const uid = comprobarLlamada(request);
+  const d = (request.data ?? {}) as Record<string, unknown>;
+  const alias = aliasOError(d.alias);
+  if (d.rol !== "ESTUDIANTE" && d.rol !== "OTRO") throw errorUsuario("invalid-argument", "Elige estudiante u otro.");
+  if (d.mayorDe14 !== true) throw errorUsuario("failed-precondition", "Valoralo es para mayores de 14 años.");
+  if (d.condiciones !== CONDICIONES_VIGENTES) {
+    throw errorUsuario("failed-precondition", "Acepta las condiciones de uso para crear la cuenta.", { motivo: "CONDICIONES" });
+  }
+  try {
+    await db().doc(`usuarios/${uid}`).create({
+      alias, rol: d.rol, verificado: false, mayorDe14: true,
+      fechaAlta: FieldValue.serverTimestamp(), condiciones: CONDICIONES_VIGENTES,
+    });
+  } catch (e) {
+    if ((e as { code?: number }).code === 6) throw errorUsuario("already-exists", "Tu perfil ya está creado.");
+    throw e;
+  }
+  return { alias };
+});
+
+/** The only way to change the public alias (the rules don't let the app write it). */
+export const cambiarAlias = onCall(async (request) => {
+  const uid = comprobarLlamada(request);
+  const alias = aliasOError((request.data as { alias?: unknown } | null)?.alias);
+  const ref = db().doc(`usuarios/${uid}`);
+  if (!(await ref.get()).exists) throw errorUsuario("failed-precondition", "Completa tu perfil primero.");
+  await ref.update({ alias });
+  return { alias };
 });
 
 // ---------- Moderación (panel de administración) ----------

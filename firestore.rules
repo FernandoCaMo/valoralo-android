@@ -94,9 +94,6 @@ service cloud.firestore {
       function esPropio() {
         return request.auth != null && request.auth.uid == uid;
       }
-      function aliasValido(alias) {
-        return alias is string && alias.size() >= 3 && alias.size() <= 30;
-      }
       // Administrators read profiles to review teacher verifications (alias, fechaAlta).
       allow read: if esPropio() || esAdmin();
       // Version of the terms of use in force (web/condiciones.html). Keep in step with
@@ -104,23 +101,16 @@ service cloud.firestore {
       function condicionesVigentes() {
         return '2026-11';
       }
-      allow create: if esPropio()
-        && request.resource.data.keys().hasOnly(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
-        && request.resource.data.keys().hasAll(['alias', 'rol', 'verificado', 'mayorDe14', 'fechaAlta', 'condiciones'])
-        && request.resource.data.condiciones == condicionesVigentes()
-        && aliasValido(request.resource.data.alias)
-        && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']
-        && request.resource.data.verificado == false
-        && request.resource.data.mayorDe14 == true
-        && request.resource.data.fechaAlta == request.time;
-      // Afterwards: alias, and rol only between ESTUDIANTE and OTRO (never to or from
-      // DOCENTE). Reviews already written keep their rolAutor.
-      // Afterwards: alias, accepting the terms in force, and rol only between ESTUDIANTE and OTRO.
+      // The profile is created, and the alias changed, only by the functions crearPerfil and
+      // cambiarAlias: the alias is public and is validated on the server (functions/src/alias.ts:
+      // format, contact data, reserved words, insults). QA 1.0.5, findings 2 and 13.
+      allow create: if false;
+      // Afterwards the app may only accept the terms in force and switch rol between ESTUDIANTE
+      // and OTRO (never to or from DOCENTE). Reviews already written keep their rolAutor.
       allow update: if esPropio()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['alias', 'rol', 'condiciones'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['rol', 'condiciones'])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['condiciones'])
             || request.resource.data.condiciones == condicionesVigentes())
-        && aliasValido(request.resource.data.alias)
         && (request.resource.data.rol == resource.data.rol
             || (resource.data.rol in ['ESTUDIANTE', 'OTRO']
                 && request.resource.data.rol in ['ESTUDIANTE', 'OTRO']));

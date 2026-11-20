@@ -25,7 +25,7 @@ let docente: Usuario;
 beforeAll(async () => {
   await crearCentro(CODIGO);
   estudiante = await crearUsuario("ESTUDIANTE");
-  docente = await crearUsuario("DOCENTE", true, "Profe Verificada");
+  docente = await crearUsuario("DOCENTE", true, "Profe de Ciencias");
 });
 
 describe("publicarValoracion", () => {

@@ -22,6 +22,12 @@ describe("validarFormulario", () => {
     });
   });
 
+  test("saltos de línea: como mucho una línea en blanco entre párrafos", () => {
+    expect(validar({ texto: "  Primera.\n\n\n\n\n\n\n\nSegunda.   " }).texto).toBe("Primera.\n\nSegunda.");
+    expect(validar({ texto: "Uno.\r\n\r\n\r\nDos.\n   \n \nTres." }).texto).toBe("Uno.\n\nDos.\n\nTres.");
+    expect(validar({ texto: "Lista:\n- a\n- b" }).texto).toBe("Lista:\n- a\n- b");
+  });
+
   test("subnotas opcionales de 1 a 5; las demás claves se ignoran", () => {
     const f = validar({
       centro: { nota: 4, gestion: 5, convivencia: 3, inventada: 9 },

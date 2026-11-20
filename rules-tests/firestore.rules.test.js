@@ -157,12 +157,14 @@ describe("usuarios", () => {
     fechaAlta: serverTimestamp(), condiciones: "2026-11", ...cambios,
   });
 
-  test("al registrarse hay que aceptar las condiciones vigentes", async () => {
-    const db = usuario("nuevo1");
-    const { condiciones, ...sinCondiciones } = perfil();
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), sinCondiciones));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ condiciones: "2020-01" })));
-    await assertSucceeds(setDoc(doc(db, "usuarios/nuevo1"), perfil()));
+  // QA 1.0.5 (findings 2 and 13): the profile is created and the alias changed only by the functions
+  // crearPerfil and cambiarAlias, which validate the public alias (functions/src/alias.ts).
+  test("la app no puede crear su perfil: lo crea la función crearPerfil", async () => {
+    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil()));
+    await assertFails(setDoc(doc(usuario("nuevo2"), "usuarios/nuevo2"), perfil({ rol: "OTRO" })));
+    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/otro"), perfil()));
+    await assertFails(setDoc(doc(anonimo(), "usuarios/nuevo1"), perfil()));
+    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil({ rol: "DOCENTE", verificado: true })));
   });
 
   test("una cuenta existente acepta las condiciones vigentes (y no otras)", async () => {
@@ -171,56 +173,25 @@ describe("usuarios", () => {
     await assertSucceeds(updateDoc(ref, { condiciones: "2026-11" }));
   });
 
-  test("cada usuario crea su propio documento como ESTUDIANTE u OTRO", async () => {
-    await assertSucceeds(setDoc(doc(usuario("nuevo1"), "usuarios/nuevo1"), perfil()));
-    await assertSucceeds(setDoc(doc(usuario("nuevo2"), "usuarios/nuevo2"), perfil({ rol: "OTRO" })));
-  });
-
-  test("no puede crear el documento de otro ni sin sesión", async () => {
-    await assertFails(setDoc(doc(usuario("nuevo1"), "usuarios/otro"), perfil()));
-    await assertFails(setDoc(doc(anonimo(), "usuarios/nuevo1"), perfil()));
-  });
-
-  test("al crearlo no puede ser DOCENTE, ni verificado, ni menor de 14", async () => {
-    const db = usuario("nuevo1");
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ rol: "DOCENTE" })));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ rol: "ADMIN" })));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ verificado: true })));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ mayorDe14: false })));
-  });
-
-  test("al crearlo los campos deben ser exactamente los del modelo", async () => {
-    const db = usuario("nuevo1");
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaNacimiento: "2000-01-01" })));
-    const { mayorDe14, ...sinMayorDe14 } = perfil();
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), sinMayorDe14));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ fechaAlta: new Date(2020, 0, 1) })));
-  });
-
-  test("alias de 3 a 30 caracteres", async () => {
-    const db = usuario("nuevo1");
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: "Lu" })));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: "x".repeat(31) })));
-    await assertFails(setDoc(doc(db, "usuarios/nuevo1"), perfil({ alias: 42 })));
-  });
-
   test("lee su propio documento pero no el de otros", async () => {
     await assertSucceeds(getDoc(doc(usuario("autorA"), "usuarios/autorA")));
     await assertFails(getDoc(doc(usuario("autorB"), "usuarios/autorA")));
     await assertFails(getDoc(doc(anonimo(), "usuarios/autorA")));
   });
 
-  test("solo puede cambiar su alias", async () => {
+  test("la app no puede cambiar el alias (ni con correo, ni suplantando, ni válido): lo hace cambiarAlias", async () => {
     const ref = doc(usuario("autorA"), "usuarios/autorA");
-    await assertSucceeds(updateDoc(ref, { alias: "Nuevo alias" }));
-    await assertFails(updateDoc(ref, { alias: "No" }));
+    await assertFails(updateDoc(ref, { alias: "Nuevo alias" }));
+    await assertFails(updateDoc(ref, { alias: "yo@correo.es" }));
+    await assertFails(updateDoc(ref, { alias: "Docente verificado" }));
     await assertFails(updateDoc(doc(usuario("autorB"), "usuarios/autorA"), { alias: "Intruso" }));
   });
 
-  test("puede cambiar entre ESTUDIANTE y OTRO", async () => {
+  test("puede cambiar entre ESTUDIANTE y OTRO (sin tocar el alias)", async () => {
     const ref = doc(usuario("autorA"), "usuarios/autorA");
     await assertSucceeds(updateDoc(ref, { rol: "OTRO" }));
-    await assertSucceeds(updateDoc(ref, { rol: "ESTUDIANTE", alias: "Otro alias" }));
+    await assertSucceeds(updateDoc(ref, { rol: "ESTUDIANTE" }));
+    await assertFails(updateDoc(ref, { rol: "OTRO", alias: "Otro alias" }));
   });
 
   test("un docente verificado no cambia su rol desde la app", async () => {
@@ -230,7 +201,7 @@ describe("usuarios", () => {
     });
     const ref = doc(usuario("docente1"), "usuarios/docente1");
     await assertFails(updateDoc(ref, { rol: "OTRO" }));
-    await assertSucceeds(updateDoc(ref, { alias: "Profe Nuevo" }));
+    await assertFails(updateDoc(ref, { alias: "Profe Nuevo" }));
   });
 
   test("nunca puede pasar a DOCENTE ni tocar verificado", async () => {
