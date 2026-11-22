@@ -30,6 +30,9 @@ data class Centro(
     val departamentosFuente: String? = null,
     val stats: Stats = Stats(),
     val fuente: Fuente? = null,
+    /** Coordinates from the dataset (`geo`); null when the centro has none. Only in the full centro, not the catalogue. */
+    val lat: Double? = null,
+    val lng: Double? = null,
 )
 
 /** Origin of the catalogue data (CC BY 4.0 requires attribution). */

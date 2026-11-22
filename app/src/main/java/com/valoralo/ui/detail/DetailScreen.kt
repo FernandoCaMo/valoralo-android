@@ -86,7 +86,9 @@ import com.valoralo.domain.model.Valoracion
 import androidx.compose.material.icons.automirrored.filled.CompareArrows
 import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.BotonFavorito
+import com.valoralo.ui.components.AVISO_INDEPENDENCIA_CENTRO
 import com.valoralo.ui.components.FUENTE_DATOS
+import com.valoralo.ui.components.URL_DATASET_CENTROS
 import com.valoralo.ui.components.ubicacion
 
 @Composable
@@ -120,6 +122,7 @@ fun DetailScreen(
         onOrdenChange = viewModel::onOrdenChange,
         onLike = viewModel::alternarLike,
         onBloquear = viewModel::bloquear,
+        onAviso = onAviso,
         accionesBarra = { centro ->
             BotonFavorito(centro.codigo in favoritos.orEmpty(), centro.nombre) { acciones.alternarFavorito(centro.codigo) }
             val comparando = centro.codigo in seleccion
@@ -146,6 +149,7 @@ private fun DetailContent(
     onOrdenChange: (OrdenResenas) -> Unit,
     onLike: (Valoracion) -> Unit,
     onBloquear: (Valoracion) -> Unit,
+    onAviso: (String) -> Unit,
     accionesBarra: @Composable (Centro) -> Unit,
 ) {
     Scaffold(
@@ -195,7 +199,7 @@ private fun DetailContent(
             DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
                 Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
             }
-            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike, onBloquear)
+            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike, onBloquear, onAviso)
         }
     }
 }
@@ -210,6 +214,7 @@ private fun DetailLista(
     onOrdenChange: (OrdenResenas) -> Unit,
     onLike: (Valoracion) -> Unit,
     onBloquear: (Valoracion) -> Unit,
+    onAviso: (String) -> Unit,
 ) {
     val centro = state.centro
     // Only the author's uid, saveable: the dialogs survive a rotation (QA 1.0.5, finding 9).
@@ -239,7 +244,7 @@ private fun DetailLista(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item { Cabecera(centro) }
-        item { Informacion(centro) }
+        item { Informacion(centro, onAviso) }
         item { OfertaAcademica(centro) }
         item {
             Titulo("Valoraciones")
@@ -314,12 +319,13 @@ private fun Cabecera(centro: Centro) {
 }
 
 @Composable
-private fun Informacion(centro: Centro) {
+private fun Informacion(centro: Centro, onAviso: (String) -> Unit) {
     val uriHandler = LocalUriHandler.current
     fun abrir(uri: String) = runCatching { uriHandler.openUri(uri) }
 
     Seccion("Información") {
-        FilaInfo(Icons.Outlined.Place, "${centro.direccion}\n${centro.cp} ${centro.ubicacion()}".trimEnd())
+        // 1.0.7: the address is a button with options (directions, copy, share).
+        DireccionConOpciones(centro, "${centro.direccion}\n${centro.cp} ${centro.ubicacion()}".trimEnd(), onAviso)
         centro.telefono?.let { tel ->
             FilaInfo(Icons.Outlined.Phone, tel, onClick = { abrir("tel:${tel.replace(" ", "")}") })
         }
@@ -330,11 +336,20 @@ private fun Informacion(centro: Centro) {
             FilaInfo(Icons.Outlined.Language, web.removePrefix("https://"), onClick = { abrir(web) })
         }
         FilaInfo(Icons.Outlined.Tag, "Código de centro: ${centro.codigo}")
+        // Play (misleading claims policy, 21/11/2026): link to the official source and say we are independent.
         Text(
-            FUENTE_DATOS,
+            "$FUENTE_DATOS · Ver la fuente oficial",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier
+                .padding(top = 8.dp)
+                .clickable(onClickLabel = "abrir la fuente oficial", role = Role.Button) { abrir(URL_DATASET_CENTROS) }
+                .padding(vertical = 6.dp),
+        )
+        Text(
+            AVISO_INDEPENDENCIA_CENTRO,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 8.dp),
         )
     }
 }

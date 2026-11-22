@@ -12,23 +12,43 @@ generados con `tools/play/graficos.py` a partir del icono de la app.
 
 > Opiniones de colegios e institutos públicos de Andalucía, por quien los conoce.
 
-**Descripción larga:**
+**Descripción larga** (vigente desde el 21/11/2026, tras el rechazo de la prueba cerrada por la política de
+declaraciones engañosas; texto tal como está en Play Console):
 
-> Valoralo te ayuda a conocer los centros educativos públicos de Andalucía a través de la experiencia de quienes los viven cada día: estudiantes, familias y docentes.
->
-> **Busca tu centro.** Más de 3.700 colegios, institutos, escuelas de idiomas, conservatorios, centros de adultos y escuelas de arte, con su dirección, sus enseñanzas y sus departamentos. Filtra por provincia, municipio, tipo de centro o enseñanzas.
->
-> **Lee y escribe valoraciones.** Puntúa el centro en general, las aulas e instalaciones y el profesorado por departamento, nunca a personas concretas. Filtra las opiniones por quién las escribe: docentes, estudiantes u otras personas.
->
-> **Docentes verificados.** El profesorado puede verificar su condición con un documento oficial, y sus reseñas muestran una insignia.
->
-> **Compara y guarda.** Compara hasta tres centros, lado a lado, y guarda tus favoritos.
->
-> **Un espacio respetuoso.** Las reseñas pasan un filtro automático y una moderación humana. No se permiten nombres de personas, insultos ni datos personales, y puedes denunciar cualquier reseña o bloquear a su autor.
->
-> Necesitas tener al menos 14 años para crear una cuenta. Consultar centros y reseñas no requiere cuenta.
->
-> Valoralo es un proyecto independiente: no está vinculado a la Junta de Andalucía ni a ningún centro. Los datos de los centros proceden del portal de datos abiertos de la Junta de Andalucía (licencia CC BY 4.0).
+```text
+AVISO: Valoralo es una aplicación independiente. No representa a la Junta de Andalucía ni a ningún organismo público o centro educativo, y no está afiliada a ellos ni autorizada por ellos. Las opiniones publicadas son de sus usuarios.
+
+Valoralo te ayuda a conocer los centros educativos públicos de Andalucía a través de la experiencia de quienes los viven cada día: estudiantes, familias y docentes.
+
+BUSCA TU CENTRO
+Más de 3.700 colegios, institutos, escuelas de idiomas, conservatorios, centros de adultos y escuelas de arte, con su dirección, contacto, enseñanzas y departamentos. Filtra por provincia, municipio, tipo de centro o enseñanzas.
+
+LEE Y ESCRIBE VALORACIONES
+Puntúa el centro en general, las aulas e instalaciones y el profesorado por departamento, nunca a personas concretas. Filtra las opiniones según quién las escribe: docentes, estudiantes u otras personas. Marca con un corazón las reseñas que te resulten útiles.
+
+DOCENTES VERIFICADOS
+El profesorado puede verificar su condición con un documento oficial, y sus reseñas muestran una insignia.
+
+COMPARA Y GUARDA
+Compara hasta tres centros lado a lado y guarda tus favoritos.
+
+UN ESPACIO RESPETUOSO
+Las reseñas pasan un filtro automático y moderación humana. No se permiten nombres de personas, insultos ni datos personales, y puedes denunciar cualquier reseña o bloquear a su autor.
+
+Necesitas tener al menos 14 años para crear una cuenta. Consultar centros y reseñas no requiere cuenta.
+
+FUENTES DE LOS DATOS OFICIALES
+Los datos de los centros (nombre, dirección, contacto, enseñanzas y departamentos) proceden del portal de datos abiertos de la Junta de Andalucía, con licencia CC BY 4.0, y pueden no estar actualizados. Consulta siempre la información oficial:
+- Directorio de centros docentes no universitarios de Andalucía: https://www.juntadeandalucia.es/datosabiertos/portal/dataset/directorio-de-centros-docentes-de-andalucia
+- Plantillas orgánicas de centros docentes públicos: https://www.juntadeandalucia.es/datosabiertos/portal/dataset/plantillas-organicas-de-centros-docentes-publicos
+- Consulta oficial de centros de la Consejería de Educación: https://www.juntadeandalucia.es/educacion/vscripts/centros/index.asp
+```
+
+**El aviso y las tres fuentes deben coincidir con la app** (`ui/components/Fuente.kt`: `AVISO_INDEPENDENCIA`,
+`FUENTES_OFICIALES`; test `FuentesOficialesTest`). Desde la 1.0.7 la app muestra el aviso al principio de Acerca de, la
+sección «Fuentes de los datos oficiales» con los mismos tres enlaces, y en el detalle de cada centro el enlace a la
+fuente oficial y una línea de independencia. Enlaces comprobados el 22/11/2026: los tres responden; el tercero redirige
+a `educaweb.juntadeandalucia.es/centros/index.asp` (buscador oficial de centros).
 
 **Capturas** (1080×1920, 9:16) en `capturas/`, **fuera del repositorio** (`.gitignore`): `01-inicio`,
 `02-buscar-filtros`, `03-detalle-centro`, `04-valorar-centro` y `05-comparador`. Hechas el 19/11/2026 en el emulador

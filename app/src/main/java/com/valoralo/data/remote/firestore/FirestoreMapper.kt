@@ -63,7 +63,23 @@ fun Map<String, Any?>.aCentro(id: String): Centro = Centro(
         val dataset = f["dataset"] as? String
         if (dataset == null) null else Fuente(dataset, f["curso"] as? String ?: "")
     },
+    lat = coordenadas(get("geo"))?.first,
+    lng = coordenadas(get("geo"))?.second,
 )
+
+/**
+ * `geo` as written by the importer (a GeoPoint) or as a map { lat, lng } / { latitude, longitude }.
+ * Null when missing or out of range (some centros have no coordinates in the dataset).
+ */
+internal fun coordenadas(geo: Any?): Pair<Double, Double>? {
+    val (lat, lng) = when (geo) {
+        is com.google.firebase.firestore.GeoPoint -> geo.latitude to geo.longitude
+        is Map<*, *> -> ((geo["lat"] ?: geo["latitude"]) as? Number)?.toDouble() to ((geo["lng"] ?: geo["longitude"]) as? Number)?.toDouble()
+        else -> null to null
+    }
+    if (lat == null || lng == null || lat !in -90.0..90.0 || lng !in -180.0..180.0 || (lat == 0.0 && lng == 0.0)) return null
+    return lat to lng
+}
 
 /**
  * catalogo/{provincia}-{parte} → summarised centros (what Inicio and its filters need).

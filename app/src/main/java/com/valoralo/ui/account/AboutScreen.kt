@@ -25,15 +25,19 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.valoralo.BuildConfig
+import com.valoralo.ui.components.AVISO_INDEPENDENCIA
 import com.valoralo.ui.components.CORREO_CONTACTO
+import com.valoralo.ui.components.FUENTES_OFICIALES
 import com.valoralo.ui.components.FUENTE_DATOS
 import com.valoralo.ui.components.URL_CONDICIONES
-import com.valoralo.ui.components.URL_DATASET_CENTROS
 import com.valoralo.ui.components.URL_ELIMINAR_CUENTA
 import com.valoralo.ui.components.URL_LICENCIA_CC_BY
 import com.valoralo.ui.components.URL_PRIVACIDAD
 
-/** What a user needs: version, legal links, contact and the data attribution. Nothing technical. */
+/**
+ * What a user needs: version, the independence notice, legal links, contact and the official sources of
+ * the data (same notice and links as the Play listing). Nothing technical.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutScreen(onVolver: () -> Unit) {
@@ -63,6 +67,12 @@ fun AboutScreen(onVolver: () -> Unit) {
         ) {
             Text("Valoralo", style = MaterialTheme.typography.titleLarge)
             Text("Versión ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodyMedium)
+            // Same notice as the top of the Play listing (misleading claims policy, 21/11/2026).
+            Text(
+                "Aviso: $AVISO_INDEPENDENCIA",
+                style = MaterialTheme.typography.bodyMedium,
+                modifier = Modifier.semantics { heading() },
+            )
             Text(
                 "Valoraciones de centros educativos públicos de Andalucía: el centro, " +
                     "sus instalaciones y el profesorado por departamento.",
@@ -84,23 +94,19 @@ fun AboutScreen(onVolver: () -> Unit) {
             TextButton(onClick = { abrir("mailto:$CORREO_CONTACTO") }) { Text(CORREO_CONTACTO) }
 
             HorizontalDivider()
-            Titulo("Datos de los centros")
+            // Same three sources, names and order as the Play listing.
+            Titulo("Fuentes de los datos oficiales")
             Text(
-                "Los datos de los centros (nombre, dirección, contacto y enseñanzas) proceden del " +
-                    "\"Directorio de centros docentes no universitarios de Andalucía\", publicado por la " +
-                    "Consejería de Desarrollo Educativo y Formación Profesional en el portal de datos " +
-                    "abiertos de la Junta de Andalucía.",
+                "Los datos de los centros (nombre, dirección, contacto, enseñanzas y departamentos) proceden del " +
+                    "portal de datos abiertos de la Junta de Andalucía, con licencia CC BY 4.0, y pueden no estar " +
+                    "actualizados. Consulta siempre la información oficial:",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Text(FUENTE_DATOS, style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = { abrir(URL_DATASET_CENTROS) }) { Text("Ver el conjunto de datos") }
+            FUENTES_OFICIALES.forEach { fuente ->
+                TextButton(onClick = { abrir(fuente.url) }) { Text(fuente.nombre) }
+            }
+            Text(FUENTE_DATOS, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = { abrir(URL_LICENCIA_CC_BY) }) { Text("Licencia CC BY 4.0") }
-            Text(
-                "Valoralo es un proyecto independiente: no está vinculado a la Junta de Andalucía ni a ningún centro. " +
-                    "Las valoraciones son opiniones de los usuarios.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
