@@ -115,6 +115,8 @@ fun ValoraloRoot(
     }
     val seleccion by acciones.seleccion.collectAsStateWithLifecycle()
     val enComparador = backStack?.destination?.route == Rutas.COMPARAR
+    // 1.0.8: the review form is full screen (its own "Publicar" bar at the bottom).
+    val pantallaCompleta = backStack?.destination?.route in RUTAS_PANTALLA_COMPLETA
 
     // Accounts from before the terms of use (or a new version): accept them once to keep using the account.
     val perfilActual = (sesion as? Sesion.Iniciada)?.perfil
@@ -132,7 +134,7 @@ fun ValoraloRoot(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
-          Column {
+          if (!pantallaCompleta) Column {
             if (seleccion.isNotEmpty() && !enComparador) {
                 BandejaComparador(
                     n = seleccion.size,

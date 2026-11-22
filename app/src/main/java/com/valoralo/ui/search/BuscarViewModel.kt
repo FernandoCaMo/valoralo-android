@@ -7,6 +7,8 @@ import com.valoralo.data.repository.ProgresoDescarga
 import com.valoralo.domain.model.Centro
 import com.valoralo.domain.usecase.FiltroCentros
 import com.valoralo.domain.usecase.OpcionesFiltro
+import com.valoralo.domain.usecase.OrdenCentros
+import com.valoralo.domain.usecase.ordenar
 import com.valoralo.domain.usecase.filtrar
 import com.valoralo.domain.usecase.opcionesFiltro
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -27,6 +29,7 @@ data class BuscarUiState(
     val progreso: ProgresoDescarga? = null,
     val texto: String = "",
     val filtro: FiltroCentros = FiltroCentros(),
+    val orden: OrdenCentros = OrdenCentros.RELEVANCIA,
     val centros: List<Centro> = emptyList(),
     val opciones: OpcionesFiltro = OpcionesFiltro(),
     /** Provincias deduced from the chosen places when no provincia is chosen. */
@@ -40,14 +43,16 @@ class BuscarViewModel @Inject constructor(
 
     private val texto = MutableStateFlow("")
     private val filtro = MutableStateFlow(FiltroCentros())
+    private val orden = MutableStateFlow(OrdenCentros.RELEVANCIA)
 
     private val catalogo: StateFlow<BuscarUiState> =
-        combine(repository.observarCentros(), texto, filtro) { centros, texto, filtro ->
+        combine(repository.observarCentros(), texto, filtro, orden) { centros, texto, filtro, orden ->
             BuscarUiState(
                 cargando = false,
                 texto = texto,
                 filtro = filtro,
-                centros = centros.filtrar(texto, filtro),
+                orden = orden,
+                centros = centros.filtrar(texto, filtro).ordenar(orden),
                 opciones = opcionesFiltro(centros, filtro),
                 provinciasDeducidas = filtro.provinciasDeducidas(),
             )
@@ -64,4 +69,6 @@ class BuscarViewModel @Inject constructor(
     fun onFiltroChange(nuevo: FiltroCentros) = filtro.update { nuevo.coherente() }
 
     fun limpiarFiltros() = filtro.update { FiltroCentros() }
+
+    fun onOrdenChange(nuevo: OrdenCentros) = orden.update { nuevo }
 }

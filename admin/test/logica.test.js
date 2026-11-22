@@ -1,7 +1,14 @@
 // node --test (from admin/)
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { comprobaciones, diasDesde, esAdmin, formatearFecha, validarCentro, validarMotivo } from "../logica.js";
+import { comprobaciones, diasDesde, esAdmin, formatearFecha, textoAntiguedad, validarCentro, validarMotivo } from "../logica.js";
+
+test("antigüedad: hoy, ayer, hace N días", () => {
+  const ahora = new Date("2026-11-22T12:00:00Z");
+  assert.equal(textoAntiguedad(new Date("2026-11-22T08:00:00Z"), ahora), "hoy");
+  assert.equal(textoAntiguedad(new Date("2026-11-21T08:00:00Z"), ahora), "ayer");
+  assert.equal(textoAntiguedad(new Date("2026-11-17T08:00:00Z"), ahora), "hace 5 días");
+});
 
 test("solo la marca admin === true da acceso", () => {
   assert.equal(esAdmin({ admin: true }), true);

@@ -47,7 +47,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.valoralo.domain.usecase.FiltroCentros
 import com.valoralo.domain.usecase.Lugar
+import com.valoralo.domain.usecase.OpcionGrupo
 import com.valoralo.domain.usecase.OpcionesFiltro
+import com.valoralo.domain.usecase.agruparTipos
+import androidx.compose.foundation.layout.heightIn
 import com.valoralo.domain.usecase.alternar
 import com.valoralo.domain.usecase.resumenSeleccion
 import com.valoralo.domain.usecase.sugerir
@@ -111,11 +114,17 @@ fun FiltrosSheet(
                         onFiltroChange(filtro.copy(lugares = filtro.lugares.alternar(it)))
                     }
                 }
+                // 1.0.8: groups with a readable name ("Colegios", "Institutos"…), the acronyms in small print.
+                val grupos = agruparTipos(opciones.tipos)
+                val gruposElegidos = grupos.filter { g -> g.siglas.any { it in filtro.tipos } }
                 SeccionPlegable(
-                    Seccion.TIPO, resumenSeleccion(filtro.tipos), abierta == Seccion.TIPO,
+                    Seccion.TIPO, resumenSeleccion(gruposElegidos.map { it.nombre }.toSet()), abierta == Seccion.TIPO,
                     { alternarSeccion(Seccion.TIPO) },
                 ) {
-                    Chips(opciones.tipos, filtro.tipos) { onFiltroChange(filtro.copy(tipos = filtro.tipos.alternar(it))) }
+                    ChipsGrupos(grupos, filtro.tipos) { g ->
+                        val todas = g.siglas.all { it in filtro.tipos }
+                        onFiltroChange(filtro.copy(tipos = if (todas) filtro.tipos - g.siglas.toSet() else filtro.tipos + g.siglas))
+                    }
                 }
                 SeccionPlegable(
                     Seccion.ENSENANZAS, resumenSeleccion(filtro.niveles), abierta == Seccion.ENSENANZAS,
@@ -199,6 +208,37 @@ private fun Chips(opciones: List<String>, elegidas: Set<String>, onAlternar: (St
                     { Icon(Icons.Filled.Check, contentDescription = null, modifier = Modifier.padding(0.dp)) }
                 } else null,
                 colors = FilterChipDefaults.filterChipColors(),
+            )
+        }
+    }
+}
+
+/** Type groups: the name, and the acronyms below in small print (CEIP · CEPR · CPR). */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChipsGrupos(grupos: List<OpcionGrupo>, elegidos: Set<String>, onAlternar: (OpcionGrupo) -> Unit) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        grupos.forEach { g ->
+            val activa = g.siglas.any { it in elegidos }
+            FilterChip(
+                selected = activa,
+                onClick = { onAlternar(g) },
+                label = {
+                    Column(Modifier.padding(vertical = 6.dp)) {
+                        Text(g.nombre)
+                        if (g.grupo != null) {
+                            Text(
+                                g.siglas.joinToString(" · "),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                },
+                leadingIcon = if (activa) {
+                    { Icon(Icons.Filled.Check, contentDescription = null) }
+                } else null,
+                modifier = Modifier.heightIn(min = 48.dp),
             )
         }
     }

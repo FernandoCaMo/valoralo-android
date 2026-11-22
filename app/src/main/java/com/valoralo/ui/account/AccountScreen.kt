@@ -4,11 +4,17 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material3.RadioButton
 import androidx.compose.ui.semantics.Role
+import com.valoralo.ui.theme.Apariencia
+import com.valoralo.ui.theme.Tema
+import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -62,7 +68,6 @@ import com.valoralo.ui.components.URL_CONDICIONES
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.Gavel
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.foundation.layout.Row
 
 @Composable
 fun AccountScreen(
@@ -94,12 +99,28 @@ fun AccountScreen(
         }
 
         HorizontalDivider(Modifier.padding(top = 8.dp))
+        // 1.0.8: light, dark or system (a per-device preference).
+        val context = LocalContext.current
+        val tema by Apariencia.tema.collectAsStateWithLifecycle()
+        var elegirTema by rememberSaveable { mutableStateOf(false) }
+        Opcion(Icons.Outlined.Palette, "Tema", tema.etiqueta) { elegirTema = true }
         Opcion(Icons.Outlined.Gavel, "Condiciones de uso") { runCatching { uriHandler.openUri(URL_CONDICIONES) } }
         Opcion(Icons.Outlined.Policy, "Política de privacidad", onClick = abrirPrivacidad)
         Opcion(Icons.Outlined.Info, "Acerca de", "Versión, información legal y contacto", onClick = onAcercaDe)
+        val conPerfil = (sesion as? Sesion.Iniciada)?.takeIf { it.perfil != null }
         if (sesion is Sesion.Iniciada) {
-            val context = LocalContext.current
             Opcion(Icons.AutoMirrored.Filled.Logout, "Cerrar sesión", flecha = false) { viewModel.cerrarSesion(context) }
+        }
+        // 1.0.8: the destructive action last, apart from the rest.
+        if (conPerfil != null) {
+            var eliminar by rememberSaveable { mutableStateOf(false) }
+            HorizontalDivider(Modifier.padding(top = 8.dp))
+            Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borra todo: perfil, reseñas, likes, favoritos…", flecha = false, peligro = true) { eliminar = true }
+            if (eliminar) DialogoEliminar(conPerfil.conGoogle, viewModel) { eliminar = false }
+        }
+        Spacer(Modifier.height(16.dp))
+        if (elegirTema) {
+            DialogoTema(tema, onElegir = { Apariencia.elegir(context, it); elegirTema = false }, onCerrar = { elegirTema = false })
         }
     }
 
@@ -132,7 +153,6 @@ private fun SinSesion(onIniciarSesion: () -> Unit, onCrearCuenta: () -> Unit) {
 @Composable
 private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCuentaViewModel, onVerificar: () -> Unit) {
     var editarAlias by rememberSaveable { mutableStateOf(false) }
-    var eliminar by rememberSaveable { mutableStateOf(false) }
     var cambiarRol by rememberSaveable { mutableStateOf(false) }
 
     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -167,12 +187,33 @@ private fun ConSesion(sesion: Sesion.Iniciada, perfil: Usuario, viewModel: MiCue
         "Autores bloqueados",
         when (bloqueados.size) { 0 -> "Ninguno"; 1 -> "1 autor"; else -> "${bloqueados.size} autores" },
     ) { verBloqueados = true }
-    Opcion(Icons.Outlined.DeleteForever, "Eliminar cuenta", "Se borra todo: perfil, reseñas, likes, favoritos…", flecha = false, peligro = true) { eliminar = true }
 
     if (verBloqueados) DialogoBloqueados(bloqueados, bloqueadosVm::desbloquear) { verBloqueados = false }
     if (editarAlias) DialogoAlias(perfil.alias, viewModel) { editarAlias = false }
     if (cambiarRol) DialogoRol(perfil.rol, viewModel) { cambiarRol = false }
-    if (eliminar) DialogoEliminar(sesion.conGoogle, viewModel) { eliminar = false }
+}
+
+@Composable
+private fun DialogoTema(actual: Tema, onElegir: (Tema) -> Unit, onCerrar: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onCerrar,
+        title = { Text("Tema") },
+        text = {
+            Column(Modifier.selectableGroup()) {
+                Tema.entries.forEach { t ->
+                    Row(
+                        Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                            .selectable(selected = t == actual, role = Role.RadioButton, onClick = { onElegir(t) }),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = t == actual, onClick = null)
+                        Text(t.etiqueta, Modifier.padding(start = 12.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onCerrar) { Text("Cerrar") } },
+    )
 }
 
 @Composable

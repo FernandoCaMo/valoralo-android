@@ -33,6 +33,7 @@ import com.valoralo.domain.usecase.EstadoLike
 import com.valoralo.ui.components.BotonLike
 import com.valoralo.ui.components.Estrellas
 import com.valoralo.ui.theme.bordeRol
+import com.valoralo.ui.theme.coloresInsigniaVerificado
 import java.time.format.DateTimeFormatter
 
 private val FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -134,11 +135,12 @@ private fun Avatar(alias: String) {
 @Composable
 private fun EtiquetaRol(valoracion: Valoracion) {
     if (valoracion.esDocenteVerificado) {
+        val (fondo, contenido) = coloresInsigniaVerificado()
         Row(
             Modifier
                 .padding(top = 2.dp)
                 .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .background(fondo)
                 .padding(horizontal = 8.dp, vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -146,13 +148,13 @@ private fun EtiquetaRol(valoracion: Valoracion) {
             Icon(
                 Icons.Filled.Verified,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                tint = contenido,
                 modifier = Modifier.size(14.dp),
             )
             Text(
                 "Docente verificado",
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                color = contenido,
             )
         }
     } else {

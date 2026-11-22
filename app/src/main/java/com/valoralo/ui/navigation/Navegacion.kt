@@ -20,6 +20,9 @@ fun NavHostController.irAPestana(pestana: Pestana) {
     }
 }
 
+/** Screens without the bottom bar (1.0.8): the review form has its own bar with "Publicar". */
+val RUTAS_PANTALLA_COMPLETA = setOf(Rutas.VALORAR)
+
 /** Root route of each bottom-bar tab. */
 val RUTAS_PESTANA = listOf(Rutas.HOME, Rutas.SEARCH, Rutas.FAVORITOS, Rutas.CUENTA)
 

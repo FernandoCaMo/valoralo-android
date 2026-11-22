@@ -10,6 +10,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import com.valoralo.ui.navigation.ValoraloRoot
 import com.valoralo.ui.theme.ValoraloTheme
+import com.valoralo.ui.theme.Apariencia
+import android.graphics.Color
+import androidx.activity.SystemBarStyle
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import dagger.hilt.android.AndroidEntryPoint
 
 /** The app's language (all its texts are Spanish). */
@@ -30,9 +37,18 @@ class MainActivity : ComponentActivity() {
         // Splash screen (Theme.Valoralo.Inicio) until the first frame.
         installSplashScreen()
         super.onCreate(savedInstanceState)
+        Apariencia.cargar(this)
         enableEdgeToEdge()
         setContent {
-            ValoraloTheme {
+            val tema by Apariencia.tema.collectAsState()
+            val oscuro = Apariencia.oscuro(tema, isSystemInDarkTheme())
+            // System bar icons follow the app's theme, not only the system's (Mi cuenta → Tema).
+            DisposableEffect(oscuro) {
+                val estilo = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { oscuro }
+                enableEdgeToEdge(statusBarStyle = estilo, navigationBarStyle = estilo)
+                onDispose {}
+            }
+            ValoraloTheme(darkTheme = oscuro) {
                 ValoraloRoot()
             }
         }

@@ -78,6 +78,32 @@ fun List<Centro>.filtrar(texto: String, filtro: FiltroCentros): List<Centro> {
     }
 }
 
+/** Order of Buscar's results (1.0.8). */
+enum class OrdenCentros(val etiqueta: String) {
+    /** With text: the searched place first; otherwise the catalogue order (by name). */
+    RELEVANCIA("Relevancia"),
+    MEJOR_VALORADOS("Mejor valorados"),
+    MAS_RESENAS("Más reseñas"),
+    NOMBRE("Nombre"),
+}
+
+/** Below this many reviews a mean is not reliable: those centros go after the ones that reach it. */
+const val MIN_RESENAS_FIABLE = 3
+
+fun List<Centro>.ordenar(orden: OrdenCentros): List<Centro> = when (orden) {
+    OrdenCentros.RELEVANCIA -> this
+    OrdenCentros.NOMBRE -> sortedBy { it.nombre.normalizado() }
+    OrdenCentros.MEJOR_VALORADOS -> sortedWith(
+        compareBy<Centro> { if (it.stats.total.global == null) 2 else if (it.stats.total.n < MIN_RESENAS_FIABLE) 1 else 0 }
+            .thenByDescending { it.stats.total.global ?: 0.0 }
+            .thenByDescending { it.stats.total.n }
+            .thenBy { it.nombre.normalizado() },
+    )
+    OrdenCentros.MAS_RESENAS -> sortedWith(
+        compareByDescending<Centro> { it.stats.total.n }.thenByDescending { it.stats.total.global ?: 0.0 }.thenBy { it.nombre.normalizado() },
+    )
+}
+
 data class OpcionesFiltro(
     val provincias: List<String> = PROVINCIAS_ANDALUCIA,
     /** Municipios and localidades (those different from their municipio) of the chosen provincias. */

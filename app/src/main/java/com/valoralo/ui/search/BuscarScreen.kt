@@ -58,6 +58,15 @@ import com.valoralo.domain.model.Centro
 import com.valoralo.domain.usecase.FiltroCentros
 import com.valoralo.ui.components.AccionesCentroViewModel
 import com.valoralo.ui.components.TarjetaCentro
+import com.valoralo.ui.components.EstadoVacio
+import com.valoralo.domain.usecase.OrdenCentros
+import androidx.compose.material.icons.automirrored.filled.Sort
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 
@@ -76,6 +85,7 @@ fun BuscarScreen(
         onTextoChange = viewModel::onTextoChange,
         onFiltroChange = viewModel::onFiltroChange,
         onLimpiarFiltros = viewModel::limpiarFiltros,
+        onOrdenChange = viewModel::onOrdenChange,
         onVerCentro = onVerCentro,
         favoritos = favoritos.orEmpty(),
         seleccion = seleccion,
@@ -91,6 +101,7 @@ private fun BuscarContent(
     onTextoChange: (String) -> Unit,
     onFiltroChange: (FiltroCentros) -> Unit,
     onLimpiarFiltros: () -> Unit,
+    onOrdenChange: (OrdenCentros) -> Unit,
     onVerCentro: (String) -> Unit,
     favoritos: Set<String>,
     seleccion: List<String>,
@@ -113,27 +124,31 @@ private fun BuscarContent(
 
         when {
             state.cargando -> Descargando(state.progreso)
-            state.error -> Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(
-                    "No se han podido cargar los centros. Comprueba tu conexión e inténtalo de nuevo.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    textAlign = TextAlign.Center,
+            state.error -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                EstadoVacio(
+                    Icons.Outlined.CloudOff,
+                    "No se han podido cargar los centros",
+                    "Comprueba tu conexión. Se cargarán solos en cuanto vuelvas a tener red.",
                 )
             }
             state.centros.isEmpty() -> SinResultados(
+                hayTexto = state.texto.isNotBlank(),
                 hayFiltros = state.filtro.hayActivos,
+                onBorrarTexto = { onTextoChange("") },
                 onLimpiarFiltros = onLimpiarFiltros,
             )
             else -> LazyColumn(
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 16.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                // 1.0.8: how many results and how they are ordered.
+                item(key = "resultados") { FilaResultados(state.centros.size, state.orden, onOrdenChange) }
                 items(state.centros, key = { it.codigo }) { centro ->
                     TarjetaCentro(
                         centro = centro,
                         esFavorito = centro.codigo in favoritos,
                         enComparador = centro.codigo in seleccion,
-                        onVerMas = { onVerCentro(centro.codigo) },
+                        onAbrir = { onVerCentro(centro.codigo) },
                         onFavorito = { onFavorito(centro.codigo) },
                         onComparar = { onComparar(centro.codigo) },
                     )
@@ -235,19 +250,53 @@ private fun Descargando(progreso: ProgresoDescarga?) {
 }
 
 @Composable
-private fun SinResultados(hayFiltros: Boolean, onLimpiarFiltros: () -> Unit) {
-    Column(
-        Modifier.fillMaxSize().padding(32.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(
-            "No hay centros que coincidan con tu búsqueda.",
-            style = MaterialTheme.typography.bodyLarge,
-            textAlign = TextAlign.Center,
+private fun SinResultados(hayTexto: Boolean, hayFiltros: Boolean, onBorrarTexto: () -> Unit, onLimpiarFiltros: () -> Unit) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        EstadoVacio(
+            Icons.Outlined.SearchOff,
+            "No hay centros que coincidan",
+            when {
+                hayFiltros && hayTexto -> "Prueba con otro nombre o quita algún filtro."
+                hayFiltros -> "Prueba quitando algún filtro."
+                else -> "Prueba con otro nombre, o con el municipio o la localidad."
+            },
+            accion = if (hayFiltros) "Quitar filtros" else if (hayTexto) "Borrar búsqueda" else null,
+            onAccion = if (hayFiltros) onLimpiarFiltros else onBorrarTexto,
         )
-        if (hayFiltros) {
-            TextButton(onClick = onLimpiarFiltros) { Text("Quitar filtros") }
+    }
+}
+
+/** "42 centros" and the order menu (1.0.8). */
+@Composable
+internal fun FilaResultados(n: Int, orden: OrdenCentros, onOrdenChange: (OrdenCentros) -> Unit) {
+    var abierto by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            textoCentros(n),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Box {
+            TextButton(onClick = { abierto = true }, modifier = Modifier.semantics { contentDescription = "Ordenar por: ${orden.etiqueta}" }) {
+                Icon(Icons.AutoMirrored.Filled.Sort, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(6.dp))
+                Text(orden.etiqueta)
+            }
+            DropdownMenu(expanded = abierto, onDismissRequest = { abierto = false }) {
+                OrdenCentros.entries.forEach { o ->
+                    DropdownMenuItem(
+                        text = { Text(o.etiqueta) },
+                        onClick = { onOrdenChange(o); abierto = false },
+                        leadingIcon = if (o == orden) { { Icon(Icons.Filled.Check, contentDescription = null) } } else null,
+                    )
+                }
+            }
         }
     }
+}
+
+internal fun textoCentros(n: Int): String = when (n) {
+    1 -> "1 centro"
+    else -> "${"%,d".format(java.util.Locale.forLanguageTag("es-ES"), n)} centros"
 }

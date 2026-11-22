@@ -29,6 +29,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.valoralo.domain.usecase.MIN_RESENAS_FIABLE
+import com.valoralo.domain.usecase.textoResenas
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -134,18 +137,30 @@ fun CompareScreen(
 private fun Tabla(s: CompareUiState.Listo, onFiltro: (FiltroRol) -> Unit, onVerCentro: (String) -> Unit, modifier: Modifier) {
     LazyColumn(modifier.fillMaxSize(), contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
         item {
+            // 1.0.8: each centro's number of reviews (for the chosen role) once, in its header, not in every cell.
+            val resenas = s.comparacion.notas.firstOrNull()?.celdas?.map { it.n }.orEmpty()
             Row(verticalAlignment = Alignment.Bottom) {
                 Spacer(ANCHO_ETIQUETA)
-                s.centros.forEach { c ->
-                    Text(
-                        c.nombre,
-                        Modifier.weight(1f).clickable { onVerCentro(c.codigo) }.padding(horizontal = 4.dp),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 3,
-                        overflow = TextOverflow.Ellipsis,
-                        textAlign = TextAlign.Center,
-                    )
+                s.centros.forEachIndexed { i, c ->
+                    Column(
+                        Modifier.weight(1f).clickable(onClickLabel = "ver el centro") { onVerCentro(c.codigo) }.padding(horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            c.nombre,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center,
+                        )
+                        Text(
+                            textoResenas(resenas.getOrElse(i) { 0 }),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
                 }
             }
         }
@@ -160,7 +175,7 @@ private fun Tabla(s: CompareUiState.Listo, onFiltro: (FiltroRol) -> Unit, onVerC
         items(s.comparacion.notas) { FilaNotas(it.etiqueta, it.celdas) }
         item {
             Text(
-                "Entre paréntesis, el número de reseñas. La mejor nota de cada fila se destaca solo si todos los centros tienen al menos $MIN_RESENAS_PARA_DESTACAR.",
+                "La mejor nota de cada fila se destaca en negrita solo si todos los centros tienen al menos $MIN_RESENAS_PARA_DESTACAR reseñas. En gris, notas con menos de $MIN_RESENAS_FIABLE reseñas.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(vertical = 8.dp),
@@ -219,13 +234,14 @@ private fun FilaNotas(etiqueta: String, celdas: List<Celda>) {
         celdas.forEach { c ->
             val texto = when {
                 !c.disponible -> "—"
-                c.nota == null -> "sin val."
-                else -> "${formatearNota(c.nota)} (${c.n})"
+                c.nota == null -> "Sin datos"
+                else -> formatearNota(c.nota)
             }
+            val pocas = c.nota != null && c.n < MIN_RESENAS_FIABLE
             val descripcion = when {
                 !c.disponible -> "No tiene este departamento"
                 c.nota == null -> "Sin valoraciones"
-                else -> "${formatearNota(c.nota)} de 5, ${c.n} reseñas" + if (c.mejor) ", la mejor" else ""
+                else -> "${formatearNota(c.nota)} de 5, ${textoResenas(c.n)}" + (if (pocas) ", pocas reseñas" else "") + if (c.mejor) ", la mejor" else ""
             }
             Text(
                 texto,
@@ -233,7 +249,7 @@ private fun FilaNotas(etiqueta: String, celdas: List<Celda>) {
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (c.mejor) FontWeight.Bold else FontWeight.Normal,
-                color = if (c.nota == null) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
+                color = if (c.nota == null || pocas) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
             )
         }
     }

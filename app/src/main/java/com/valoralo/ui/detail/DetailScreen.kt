@@ -53,6 +53,21 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.outlined.CloudOff
+import androidx.compose.material.icons.outlined.ErrorOutline
+import androidx.compose.material.icons.outlined.RateReview
+import androidx.compose.material.icons.outlined.SearchOff
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.text.style.TextOverflow
+import com.valoralo.domain.usecase.MIN_RESENAS_FIABLE
+import com.valoralo.ui.components.BotonComparar
+import com.valoralo.ui.components.EstadoVacio
+import kotlinx.coroutines.launch
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
@@ -125,14 +140,10 @@ fun DetailScreen(
         onAviso = onAviso,
         accionesBarra = { centro ->
             BotonFavorito(centro.codigo in favoritos.orEmpty(), centro.nombre) { acciones.alternarFavorito(centro.codigo) }
-            val comparando = centro.codigo in seleccion
-            IconButton(onClick = { acciones.alternarComparar(centro.codigo) }) {
-                Icon(
-                    Icons.AutoMirrored.Filled.CompareArrows,
-                    contentDescription = if (comparando) "Quitar del comparador" else "Añadir al comparador",
-                    tint = if (comparando) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        },
+        // 1.0.8: "Comparar" with text (not the arrows icon), next to the centro's mark.
+        botonComparar = { centro ->
+            BotonComparar(centro.codigo in seleccion, { acciones.alternarComparar(centro.codigo) })
         },
     )
 }
@@ -151,11 +162,23 @@ private fun DetailContent(
     onBloquear: (Valoracion) -> Unit,
     onAviso: (String) -> Unit,
     accionesBarra: @Composable (Centro) -> Unit,
+    botonComparar: @Composable (Centro) -> Unit,
 ) {
+    val lista = rememberLazyListState()
+    // 1.0.8: once the header scrolls away, the bar shows which centro this is.
+    val cabeceraFuera by remember { derivedStateOf { lista.firstVisibleItemIndex > 0 } }
+    // 1.0.8: the button shrinks to its icon while scrolling down and grows back when scrolling up or at the top.
+    val fabExpandido by remember { derivedStateOf { lista.firstVisibleItemIndex == 0 || !lista.lastScrolledForward } }
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { LogoValoralo() },
+                title = {
+                    if (cabeceraFuera && state is DetailUiState.Listo) {
+                        Text(state.centro.nombre, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    } else {
+                        LogoValoralo()
+                    }
+                },
                 windowInsets = WindowInsets(0),
                 navigationIcon = {
                     IconButton(onClick = onVolver) {
@@ -173,6 +196,7 @@ private fun DetailContent(
                     onClick = { onAnadirValoracion(state.centro) },
                     icon = { Icon(if (propia) Icons.Outlined.Edit else Icons.Filled.Add, contentDescription = null) },
                     text = { Text(etiqueta) },
+                    expanded = fabExpandido,
                     // One accessibility node with name, role and action: the tree showed this button without
                     // text (QA 1.0.5, finding 15), so TalkBack doesn't depend on merging the inner Text.
                     modifier = Modifier.clearAndSetSemantics {
@@ -191,15 +215,18 @@ private fun DetailContent(
                 CircularProgressIndicator()
             }
             DetailUiState.NoEncontrado -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
-                Text("No hemos encontrado este centro.")
+                EstadoVacio(Icons.Outlined.SearchOff, "No hemos encontrado este centro", "Puede que ya no figure en el directorio oficial.", "Volver", onVolver)
             }
-            DetailUiState.SinConexion -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
-                Text("Sin conexión. Este centro se cargará en cuanto vuelvas a tener red.")
+            DetailUiState.SinConexion -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
+                EstadoVacio(Icons.Outlined.CloudOff, "Sin conexión", "Este centro se cargará solo en cuanto vuelvas a tener red.")
             }
-            DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding).padding(32.dp), Alignment.Center) {
-                Text("No se ha podido cargar el centro. Comprueba tu conexión e inténtalo de nuevo.")
+            DetailUiState.Error -> Box(Modifier.fillMaxSize().padding(padding), Alignment.Center) {
+                EstadoVacio(Icons.Outlined.ErrorOutline, "No se ha podido cargar el centro", "Comprueba tu conexión e inténtalo de nuevo.", "Volver", onVolver)
             }
-            is DetailUiState.Listo -> DetailLista(state, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike, onBloquear, onAviso)
+            is DetailUiState.Listo -> DetailLista(
+                state, lista, onFiltroRolChange, padding, onDenunciar, onIniciarSesion, onOrdenChange, onLike, onBloquear, onAviso,
+                onAnadirValoracion = { onAnadirValoracion(state.centro) }, botonComparar = { botonComparar(state.centro) },
+            )
         }
     }
 }
@@ -207,6 +234,7 @@ private fun DetailContent(
 @Composable
 private fun DetailLista(
     state: DetailUiState.Listo,
+    lista: LazyListState,
     onFiltroRolChange: (FiltroRol) -> Unit,
     padding: PaddingValues,
     onDenunciar: (autorUid: String, MotivoDenuncia) -> Unit,
@@ -215,8 +243,11 @@ private fun DetailLista(
     onLike: (Valoracion) -> Unit,
     onBloquear: (Valoracion) -> Unit,
     onAviso: (String) -> Unit,
+    onAnadirValoracion: () -> Unit,
+    botonComparar: @Composable () -> Unit,
 ) {
     val centro = state.centro
+    val scope = rememberCoroutineScope()
     // Only the author's uid, saveable: the dialogs survive a rotation (QA 1.0.5, finding 9).
     var denunciandoUid by rememberSaveable { mutableStateOf<String?>(null) }
     var bloqueandoUid by rememberSaveable { mutableStateOf<String?>(null) }
@@ -238,25 +269,30 @@ private fun DetailLista(
             onCancelar = ::cerrarDialogos,
         )
     }
+    // 1.0.8 order: what people look for first (mark, notes) before the data of the centro.
+    val indiceResenas = indiceDeResenas(hayDepartamentos = state.departamentos.isNotEmpty(), hayPropia = state.miValoracion != null)
     LazyColumn(
+        state = lista,
         modifier = Modifier.fillMaxSize().padding(padding),
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        item { Cabecera(centro) }
-        item { Informacion(centro, onAviso) }
-        item { OfertaAcademica(centro) }
-        item {
+        item(key = "cabecera") {
+            Cabecera(centro, botonComparar, onVerResenas = { scope.launch { lista.animateScrollToItem(indiceResenas) } })
+        }
+        item(key = "valoraciones") {
             Titulo("Valoraciones")
             Spacer(Modifier.height(8.dp))
             ChipsRol(state.filtroRol, onFiltroRolChange)
         }
-        item { NotasPorDimension(state.notas, state.filtroRol) }
+        item(key = "notas") { NotasPorDimension(state.notas, state.filtroRol) }
+        item(key = "info") { Informacion(centro, onAviso) }
+        item(key = "oferta") { OfertaAcademica(centro) }
         if (state.departamentos.isNotEmpty()) {
-            item { NotasPorDepartamento(state.departamentos) }
+            item(key = "departamentos") { NotasPorDepartamento(state.departamentos) }
         }
         state.miValoracion?.let { mia ->
-            item { Titulo("Tu valoración") }
+            item(key = "tu-valoracion") { Titulo("Tu valoración") }
             item(key = "mia") {
                 TarjetaResena(
                     mia,
@@ -265,7 +301,7 @@ private fun DetailLista(
                 )
             }
         }
-        item {
+        item(key = "resenas") {
             Titulo("Reseñas")
             if (state.resenas.size > 1) {
                 Spacer(Modifier.height(8.dp))
@@ -273,10 +309,14 @@ private fun DetailLista(
             }
         }
         if (state.resenas.isEmpty()) {
-            item {
-                Text(
+            item(key = "sin-resenas") {
+                val invitar = state.filtroRol == FiltroRol.TODOS && state.miValoracion == null
+                EstadoVacio(
+                    Icons.Outlined.RateReview,
                     textoSinResenas(state.filtroRol, tengoPropia = state.miValoracion != null),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    if (invitar) "Tu opinión ayuda a otras familias, estudiantes y docentes." else null,
+                    accion = if (invitar) "Sé el primero en valorar" else null,
+                    onAccion = if (invitar) onAnadirValoracion else null,
                 )
             }
         } else {
@@ -293,14 +333,16 @@ private fun DetailLista(
     }
 }
 
+/** Index of the "Reseñas" item, for "Ver reseñas" (same order as the LazyColumn above). */
+internal fun indiceDeResenas(hayDepartamentos: Boolean, hayPropia: Boolean): Int =
+    5 + (if (hayDepartamentos) 1 else 0) + (if (hayPropia) 2 else 0)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Cabecera(centro: Centro) {
+private fun Cabecera(centro: Centro, botonComparar: @Composable () -> Unit, onVerResenas: () -> Unit) {
     Column {
-        FotoCentro(
-            centro.fotoUrl,
-            centro.tipo,
-            Modifier.fillMaxWidth().aspectRatio(16f / 9f),
-        )
+        // 1.0.8: a slimmer illustration (was 16:9, a third of the screen) so the mark is visible at once.
+        FotoCentro(centro.fotoUrl, centro.tipo, Modifier.fillMaxWidth().aspectRatio(3f))
         Spacer(Modifier.height(12.dp))
         Text(centro.nombre, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.semantics { heading() })
         Text(
@@ -308,13 +350,22 @@ private fun Cabecera(centro: Centro) {
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(12.dp))
         NotaMedia(
             centro.stats.total.global,
             centro.stats.total.n,
-            style = MaterialTheme.typography.headlineSmall,
-            iconSize = 26.dp,
+            style = MaterialTheme.typography.headlineMedium,
+            iconSize = 30.dp,
         )
+        Spacer(Modifier.height(8.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+            if (centro.stats.total.n > 0) {
+                FilledTonalButton(onClick = onVerResenas) {
+                    Text(if (centro.stats.total.n == 1) "Ver la reseña" else "Ver las ${centro.stats.total.n} reseñas")
+                }
+            }
+            botonComparar()
+        }
     }
 }
 
@@ -359,9 +410,11 @@ private fun FilaInfo(icono: ImageVector, texto: String, onClick: (() -> Unit)? =
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(icono, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
         Text(
@@ -429,25 +482,31 @@ private fun NotasPorDimension(notas: StatsGrupo, filtro: FiltroRol) {
 private fun NotasPorDepartamento(departamentos: List<Pair<String, StatsDepartamento>>) {
     Seccion("Profesorado por departamento") {
         departamentos.forEach { (nombre, stats) ->
-            BarraNota(nombre, stats.media, detalle = "(${stats.n})")
+            val pocas = stats.n < MIN_RESENAS_FIABLE
+            BarraNota(nombre, stats.media, detalle = if (pocas) "(${stats.n} · pocas reseñas)" else "(${stats.n})", atenuada = pocas)
         }
     }
 }
 
 @Composable
-private fun BarraNota(etiqueta: String, nota: Double?, detalle: String? = null) {
+private fun BarraNota(etiqueta: String, nota: Double?, detalle: String? = null, atenuada: Boolean = false) {
+    val colorTexto = if (atenuada) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
     Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(etiqueta, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-            Text(formatearNota(nota), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+            Text(etiqueta, style = MaterialTheme.typography.bodyMedium, color = colorTexto, modifier = Modifier.weight(1f))
+            Text(formatearNota(nota), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = colorTexto)
             if (detalle != null) {
                 Spacer(Modifier.width(4.dp))
                 Text(detalle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        // 1.0.8: one colour on a neutral track (the expressive two-tone track looked like a second value).
         LinearProgressIndicator(
             progress = { ((nota ?: 0.0) / 5.0).toFloat() },
             modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+            color = if (atenuada) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            gapSize = 0.dp,
             drawStopIndicator = {},
         )
     }

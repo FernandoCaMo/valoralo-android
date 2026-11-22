@@ -33,6 +33,16 @@ fun NotaMedia(
 ) {
     val descripcion = if (nota == null) "Sin valoraciones"
     else "Nota ${formatearNota(nota)} de 5, ${textoResenas(n)}"
+    if (nota == null) {
+        // 1.0.8: no "– ★ (sin reseñas)" with a loose dash and star.
+        Text(
+            "Sin reseñas todavía",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = modifier.clearAndSetSemantics { contentDescription = descripcion },
+        )
+        return
+    }
     Row(
         modifier = modifier.clearAndSetSemantics { contentDescription = descripcion },
         verticalAlignment = Alignment.CenterVertically,

@@ -12,7 +12,7 @@ import {
 import { connectFunctionsEmulator, getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-functions.js";
 import { connectStorageEmulator, getDownloadURL, getStorage, ref } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import {
-  agruparDenuncias, CLAVE_RECAPTCHA, comprobaciones, usarAppCheck, diasDesde, esAdmin, formatearFecha, MOTIVO_DENUNCIA, MOTIVOS_OCULTAR, ORIGEN_REVISION,
+  agruparDenuncias, CLAVE_RECAPTCHA, comprobaciones, usarAppCheck, textoAntiguedad, esAdmin, formatearFecha, MOTIVO_DENUNCIA, MOTIVOS_OCULTAR, ORIGEN_REVISION,
   segmentos, textoDestacadas, URL_VERIFICACION_JUNTA, validarCentro, validarMotivo, validarNota,
 } from "./logica.js";
 
@@ -152,7 +152,7 @@ async function tarjetaSolicitud(v) {
 
   // Everything coming from users is set as text, never as HTML.
   en("alias").textContent = perfil.get("alias") ?? "(sin perfil)";
-  en("antiguedad").textContent = fechaSolicitud ? `hace ${diasDesde(fechaSolicitud)} días` : "";
+  en("antiguedad").textContent = fechaSolicitud ? textoAntiguedad(fechaSolicitud) : "";
   en("nombre").textContent = privado.get("nombreDeclarado") ?? "—";
   en("csv").textContent = privado.get("csv") ?? "—";
   en("alta").textContent = formatearFecha(fechaAlta);
@@ -246,7 +246,8 @@ async function tarjetaResena(codigo, uid, v, denuncias, pestana) {
 
   en("centro-nombre").textContent = `${await nombreCentro(codigo)} (${codigo})`;
   en("antiguedad").textContent = fecha ? formatearFecha(fecha) : "";
-  en("autor").textContent = `${v.alias ?? "—"} · ${v.rolAutor ?? "—"} · uid ${uid}`;
+  en("autor").textContent = `${v.alias ?? "—"} · ${v.rolAutor ?? "—"}`;
+  en("uid").textContent = uid;
   en("origen").textContent = pestana === "denuncias"
     ? "Publicada con denuncias pendientes"
     : ORIGEN_REVISION[v.revision?.origen] ?? (v.revision?.origen ?? "—");

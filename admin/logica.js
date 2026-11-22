@@ -22,6 +22,14 @@ export function diasDesde(fecha, ahora = new Date()) {
   return Math.floor((ahora.getTime() - fecha.getTime()) / 86400000);
 }
 
+/** "hoy", "ayer", "hace 5 días" (1.0.8: was "hace 0 días"). */
+export function textoAntiguedad(fecha, ahora = new Date()) {
+  const d = diasDesde(fecha, ahora);
+  if (d <= 0) return "hoy";
+  if (d === 1) return "ayer";
+  return `hace ${d} días`;
+}
+
 /** Same limits as resolverVerificacion. Returns an error message or null. */
 export function validarMotivo(motivo) {
   const m = (motivo ?? "").trim();

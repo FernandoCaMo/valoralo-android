@@ -159,7 +159,7 @@ fun InicioScreen(
                     centro = centro,
                     esFavorito = true,
                     enComparador = centro.codigo in seleccion,
-                    onVerMas = { onVerCentro(centro.codigo) },
+                    onAbrir = { onVerCentro(centro.codigo) },
                     onFavorito = { acciones.alternarFavorito(centro.codigo) },
                     onComparar = { acciones.alternarComparar(centro.codigo) },
                     modifier = Modifier.padding(horizontal = 16.dp),

@@ -62,6 +62,8 @@ import com.valoralo.domain.model.OrigenRevision
 import com.valoralo.domain.usecase.FormularioValoracion
 import com.valoralo.domain.usecase.LIMITE_TEXTO_VALORACION
 import com.valoralo.domain.usecase.OtroDepartamento
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.material3.Surface
 import com.valoralo.ui.components.SelectorEstrellas
 
 private val SUBNOTAS_CENTRO = listOf("gestion" to "Gestión", "convivencia" to "Convivencia", "comunicacion" to "Comunicación")
@@ -99,6 +101,30 @@ fun ReviewScreen(
                 windowInsets = WindowInsets(0),
             )
         },
+        // 1.0.8: "Publicar" always visible at the bottom, saying what is missing (the form is full screen,
+        // without the app's bottom bar).
+        bottomBar = {
+            if (!s.cargando) {
+                val falta = s.formulario.error(s.centro?.departamentos.orEmpty())
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Column(
+                        Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        if (falta != null) {
+                            Text(
+                                "Falta: ${falta.mensaje.replaceFirstChar { it.lowercase() }}",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Button(onClick = viewModel::publicar, enabled = !s.enviando, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (s.enviando) "Enviando…" else if (s.existente != null) "Guardar cambios" else "Publicar")
+                        }
+                    }
+                }
+            }
+        },
         contentWindowInsets = WindowInsets(0),
     ) { padding ->
         if (s.cargando) {
@@ -114,13 +140,13 @@ fun ReviewScreen(
             AvisoEstado(s.existente?.estado, s.existente?.revision?.origen, s.existente?.motivoModeracion)
 
             Bloque("Centro en general", obligatorio = true) {
-                SelectorEstrellas(f.notaCentro, { n -> viewModel.cambiar { it.copy(notaCentro = n) } }, "Centro en general")
+                SelectorEstrellas(f.notaCentro, { n -> viewModel.cambiar { it.copy(notaCentro = n) } }, "Centro en general", conEtiqueta = true)
                 Subnotas(SUBNOTAS_CENTRO, f.subnotasCentro) { clave, n ->
                     viewModel.cambiar { it.copy(subnotasCentro = it.subnotasCentro.conNota(clave, n)) }
                 }
             }
             Bloque("Aulas e instalaciones", obligatorio = true) {
-                SelectorEstrellas(f.notaInstalaciones, { n -> viewModel.cambiar { it.copy(notaInstalaciones = n) } }, "Aulas e instalaciones")
+                SelectorEstrellas(f.notaInstalaciones, { n -> viewModel.cambiar { it.copy(notaInstalaciones = n) } }, "Aulas e instalaciones", conEtiqueta = true)
                 Subnotas(SUBNOTAS_INSTALACIONES, f.subnotasInstalaciones) { clave, n ->
                     viewModel.cambiar { it.copy(subnotasInstalaciones = it.subnotasInstalaciones.conNota(clave, n)) }
                 }
@@ -172,9 +198,6 @@ fun ReviewScreen(
                 s.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
 
-            Button(onClick = viewModel::publicar, enabled = !s.enviando, modifier = Modifier.fillMaxWidth()) {
-                Text(if (s.enviando) "Enviando…" else if (s.existente != null) "Guardar cambios" else "Publicar")
-            }
             if (s.existente != null) {
                 OutlinedButton(onClick = { confirmarBorrado = true }, enabled = !s.enviando, modifier = Modifier.fillMaxWidth()) {
                     Text("Borrar mi valoración", color = MaterialTheme.colorScheme.error)
