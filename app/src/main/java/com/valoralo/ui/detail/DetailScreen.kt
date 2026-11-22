@@ -61,6 +61,8 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.RateReview
 import androidx.compose.material.icons.outlined.SearchOff
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Button
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextOverflow
@@ -168,8 +170,7 @@ private fun DetailContent(
     val lista = rememberLazyListState()
     // 1.0.8: once the header scrolls away, the bar shows which centro this is.
     val cabeceraFuera by remember { derivedStateOf { lista.firstVisibleItemIndex > 0 } }
-    // 1.0.8: the button shrinks to its icon while scrolling down and grows back when scrolling up or at the top.
-    val fabExpandido by remember { derivedStateOf { lista.firstVisibleItemIndex == 0 || !lista.lastScrolledForward } }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -189,23 +190,28 @@ private fun DetailContent(
                 actions = { if (state is DetailUiState.Listo) accionesBarra(state.centro) },
             )
         },
-        floatingActionButton = {
+        // 1.0.8: a fixed bar at the bottom instead of a floating button, so it never covers text or bars
+        // (the content is laid out above it).
+        bottomBar = {
             if (state is DetailUiState.Listo) {
                 val propia = state.miValoracion != null
                 val etiqueta = if (propia) "Editar mi valoración" else "Añadir valoración"
-                ExtendedFloatingActionButton(
-                    onClick = { onAnadirValoracion(state.centro) },
-                    icon = { Icon(if (propia) Icons.Outlined.Edit else Icons.Filled.Add, contentDescription = null) },
-                    text = { Text(etiqueta) },
-                    expanded = fabExpandido,
-                    // One accessibility node with name, role and action: the tree showed this button without
-                    // text (QA 1.0.5, finding 15), so TalkBack doesn't depend on merging the inner Text.
-                    modifier = Modifier.clearAndSetSemantics {
-                        contentDescription = etiqueta
-                        role = Role.Button
-                        onClick(label = etiqueta) { onAnadirValoracion(state.centro); true }
-                    },
-                )
+                Surface(color = MaterialTheme.colorScheme.surfaceContainer) {
+                    Button(
+                        onClick = { onAnadirValoracion(state.centro) },
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
+                            // One accessibility node with name, role and action (QA 1.0.5, finding 15).
+                            .clearAndSetSemantics {
+                                contentDescription = etiqueta
+                                role = Role.Button
+                                onClick(label = etiqueta) { onAnadirValoracion(state.centro); true }
+                            },
+                    ) {
+                        Icon(if (propia) Icons.Outlined.Edit else Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text(etiqueta)
+                    }
+                }
             }
         },
         // The app-level Scaffold already handles system bars and the bottom bar.
@@ -275,11 +281,11 @@ private fun DetailLista(
     LazyColumn(
         state = lista,
         modifier = Modifier.fillMaxSize().padding(padding),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item(key = "cabecera") {
-            Cabecera(centro, botonComparar, onVerResenas = { scope.launch { lista.animateScrollToItem(indiceResenas) } })
+            Cabecera(centro, botonComparar, onVerResenas = { scope.launch { lista.animateScrollToItem(indiceResenas) } }, onValorar = onAnadirValoracion.takeIf { state.miValoracion == null })
         }
         item(key = "valoraciones") {
             Titulo("Valoraciones")
@@ -311,7 +317,7 @@ private fun DetailLista(
         }
         if (state.resenas.isEmpty()) {
             item(key = "sin-resenas") {
-                val invitar = state.filtroRol == FiltroRol.TODOS && state.miValoracion == null
+                val invitar = state.filtroRol == FiltroRol.TODOS && state.miValoracion == null && centro.stats.total.n > 0
                 EstadoVacio(
                     Icons.Outlined.RateReview,
                     textoSinResenas(state.filtroRol, tengoPropia = state.miValoracion != null),
@@ -340,7 +346,7 @@ internal fun indiceDeResenas(hayDepartamentos: Boolean, hayPropia: Boolean): Int
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Cabecera(centro: Centro, botonComparar: @Composable () -> Unit, onVerResenas: () -> Unit) {
+private fun Cabecera(centro: Centro, botonComparar: @Composable () -> Unit, onVerResenas: () -> Unit, onValorar: (() -> Unit)?) {
     Column {
         // 1.0.8: a slimmer illustration (was 16:9, a third of the screen) so the mark is visible at once.
         FotoCentro(centro.fotoUrl, centro.tipo, Modifier.fillMaxWidth().aspectRatio(3f))
@@ -366,6 +372,19 @@ private fun Cabecera(centro: Centro, botonComparar: @Composable () -> Unit, onVe
                 }
             }
             botonComparar()
+        }
+        // 1.0.8: a centro without reviews invites to write the first one as soon as it opens.
+        if (centro.stats.total.n == 0 && onValorar != null) {
+            Spacer(Modifier.height(12.dp))
+            OutlinedCard(Modifier.fillMaxWidth()) {
+                EstadoVacio(
+                    Icons.Outlined.RateReview,
+                    "Aún no hay reseñas de este centro",
+                    "Tu opinión ayuda a otras familias, estudiantes y docentes.",
+                    accion = "Sé el primero en valorar",
+                    onAccion = onValorar,
+                )
+            }
         }
     }
 }

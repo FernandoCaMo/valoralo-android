@@ -38,9 +38,9 @@ class BordeRolTest {
     @Test
     fun docenteYEstudianteSonLegiblesComoTextoEnClaroYOscuro() {
         // 4.5:1 also covers the 3:1 needed for borders.
-        for (docente in ColorDocente.entries) for (rol in listOf(Rol.DOCENTE, Rol.ESTUDIANTE)) {
-            fondosClaros.forEach { f -> assertTrue("$rol/$docente claro", contraste(colorBordeRol(rol, false, docente), f) >= 4.5) }
-            fondosOscuros.forEach { f -> assertTrue("$rol/$docente oscuro", contraste(colorBordeRol(rol, true, docente), f) >= 4.5) }
+        for (rol in listOf(Rol.DOCENTE, Rol.ESTUDIANTE)) {
+            fondosClaros.forEach { f -> assertTrue("$rol claro", contraste(colorBordeRol(rol, false), f) >= 4.5) }
+            fondosOscuros.forEach { f -> assertTrue("$rol oscuro", contraste(colorBordeRol(rol, true), f) >= 4.5) }
         }
     }
 
@@ -48,10 +48,8 @@ class BordeRolTest {
     fun docenteYaNoEsElAzulDeBotonesYEnlaces() {
         val primarioClaro = Color(0xFF1F5E8C)
         val primarioOscuro = Color(0xFF96CCFF)
-        for (docente in ColorDocente.entries) {
-            assertNotEquals(primarioClaro, colorBordeRol(Rol.DOCENTE, false, docente))
-            assertNotEquals(primarioOscuro, colorBordeRol(Rol.DOCENTE, true, docente))
-        }
+        assertNotEquals(primarioClaro, colorBordeRol(Rol.DOCENTE, false))
+        assertNotEquals(primarioOscuro, colorBordeRol(Rol.DOCENTE, true))
     }
 
     @Test

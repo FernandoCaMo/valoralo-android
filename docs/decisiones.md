@@ -74,6 +74,36 @@ La carpeta `docs/` es la fuente de verdad de la especificación. Cualquier cambi
   - Si Google rechaza el botón "Iniciar sesión con Google" (`GetSignInWithGoogleOption`), la app lo intenta con el selector de cuentas (`GetGoogleIdOption`, sin filtrar cuentas autorizadas) y, si también falla, muestra los dos códigos ("Botón: … / Selector: …").
   - **Resultado (18/11/2026):** la huella que faltaba era la de la **clave anterior** de la firma híbrida, SHA-1 `26:FF:D8:13:5B:5F:08:AD:75:35:F2:88:64:91:8F:A2:6E:A7:A9:79` (la que ve un móvil con Android 16 o anterior). Añadida en Firebase, Google funciona. **Regla: con la firma "preparada para la computación cuántica" hay que registrar en Firebase las tres huellas de Play** (clásica `1D:9A…`, poscuántica `A8:47…` y anterior `26:FF…`), además de la de subida y la de debug, y repetirlo cada vez que Play rote la clave (anual).
 - **1.0.4 (versionCode 5): nada técnico para el usuario.** Los mensajes de error son siempre texto para el usuario ("No se ha podido iniciar sesión con Google. Inténtalo de nuevo o entra con tu correo."); los detalles (código, clase, mensaje técnico, huella instalada) van solo a Crashlytics y, en debug, a Logcat y a la pantalla. Se quitan la sección "Firma de esta instalación" de Acerca de y el segundo intento con el selector de cuentas. Acerca de queda con versión, condiciones, privacidad, cómo eliminar la cuenta, contacto y la atribución de la Junta. Las funciones marcan sus mensajes para el usuario con `details.paraUsuario`; la app solo muestra el mensaje del servidor si lleva esa marca (los de Firebase, en inglés —"NOT_FOUND", "Unauthenticated"—, se cambian por el texto de la app).
+- **Regla de capturas (22/11/2026): en cualquier captura (ficha de Play, documentación, auditorías), solo centros ficticios.** Nunca un centro real, ni siquiera sin reseñas ni en un listado. Para hacerlas, los emuladores de Firebase se cargan solo con centros ficticios (11, códigos `41999901`–`41999911`, nombres comprobados contra el catálogo de Andalucía) y se borran los reales. Se retiraron de `docs/diseno/capturas/` las que mostraban centros reales.
+- **1.0.8 (versionCode 9, 22/11/2026): ronda de diseño** (`docs/diseno/propuesta-2026-11-22.md`, capturas en `docs/diseno/antes-despues-1.0.8/`).
+  - *Color.*
+    - **Esquema completo** en `Theme.kt`, generado con el algoritmo de Material (paletas HCT) desde #1F5E8C. `primary` conserva el azul de la marca; superficies, contornos y `surfaceContainer*` salen de la paleta neutra del mismo tono, así que ya no hay tonos lavanda. `tertiary` es ámbar (la generada era lavanda).
+    - **Un solo color de selección:** `secondaryContainer` = `primaryContainer`, el azul claro, en la barra inferior, chips y filtros; ya no hay menta.
+    - **Docente en verde**, distinto del azul de botones y enlaces: #2C694D en claro y #95D4B2 en oscuro. Se eligió frente al verde azulado. La insignia «Docente verificado» tiene su propio contenedor verde. Contraste de al menos 4,5:1 en todas las superficies de tarjeta (`BordeRolTest`).
+    - **Tema** claro, oscuro o según el sistema, en Mi cuenta. Es una preferencia del dispositivo: no va al servidor.
+  - *Buscar.*
+    - Número de resultados y orden: Relevancia, Mejor valorados, Más reseñas o Nombre. Los centros con menos de 3 reseñas van detrás de los que tienen 3 o más (`MIN_RESENAS_FIABLE`).
+    - Tarjetas sin «Ver más»: la tarjeta entera abre el centro. Dicen «Sin reseñas todavía» y «Comparar» es un chip que no se parte.
+    - Tipos de centro agrupados en los filtros: Colegios, Institutos, Formación Profesional, Personas adultas, Idiomas, Música y danza, Arte y diseño, Educación especial. Las siglas van en pequeño; una sigla nueva del dataset aparece como opción propia.
+  - *Detalle del centro.*
+    - Ilustración 3:1, nota grande, «Ver las N reseñas» y «Comparar» con texto.
+    - Orden: notas, información, oferta académica, departamentos, tu valoración, reseñas.
+    - Al bajar, la barra superior muestra el nombre del centro.
+    - Barras de un solo color.
+    - Departamentos con menos de 3 reseñas en gris, con una leyenda debajo; TalkBack dice «pocas reseñas».
+    - Filas de contacto de 48 dp.
+    - **«Añadir/Editar mi valoración» es una barra fija abajo, no un botón flotante:** nunca tapa texto ni barras.
+    - Un centro sin reseñas muestra «Sé el primero en valorar» en la cabecera.
+  - *Estados vacíos y de error* (`EstadoVacio`): icono, título, explicación y acción («Quitar filtros», «Borrar búsqueda», «Volver»).
+  - *Formulario de valoración.* A pantalla completa, sin la barra inferior. «Publicar» va fijo abajo e indica qué falta. Las notas principales llevan etiqueta: Muy mal, Mal, Regular, Bien, Excelente; TalkBack las lee en todas las estrellas.
+  - *Comparador.* El número de reseñas va en la cabecera de cada centro, no en cada celda. «Sin datos» sustituye a «sin val.», y las notas con menos de 3 reseñas van en gris.
+  - *Mi cuenta.* «Eliminar cuenta» al final, separado y después de «Cerrar sesión».
+  - *Panel.*
+    - `[hidden]` gana a las reglas `display`; «Cerrar sesión» salía sin sesión.
+    - «hoy», «ayer» y «hace N días».
+    - Herramientas separadas de las pestañas.
+    - Identificador técnico plegado.
+    - Colores del esquema nuevo.
 - **Rechazo de Google Play (21/11/2026): política de declaraciones engañosas.** La prueba cerrada se rechazó porque la descripción no enlazaba las fuentes oficiales de la información pública ni avisaba de que no representa a ningún organismo.
   - *La ficha:* aviso de independencia al principio y sección «Fuentes de los datos oficiales» con 3 enlaces de la Junta (texto en `docs/play/ficha-y-formularios.md`). Se reenvió la prueba cerrada con la 1.0.6.
   - *Regla:* la ficha y la app llevan siempre el mismo aviso y las mismas fuentes oficiales (`Fuente.kt`; el test `FuentesOficialesTest` fija nombres y enlaces). Cualquier dato público nuevo (otro dataset, otra comunidad) se añade a la ficha, a la app y a la licencia a la vez.

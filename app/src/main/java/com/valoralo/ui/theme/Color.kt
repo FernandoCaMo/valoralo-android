@@ -29,12 +29,9 @@ val NeutroVar90 = Color(0xFFDEE3EB)
 val Terracota40 = Color(0xFFA0461A)
 val Melocoton80 = Color(0xFFFFB68F)
 
-// Teacher reviews (1.0.8): no longer the brand blue of buttons and links. Two candidates from HCT tonal
-// palettes (tone 40 light / 80 dark); the chosen one is PROPUESTA_DOCENTE.
+// Teacher reviews (1.0.8): green, no longer the brand blue of buttons and links (HCT tone 40 light / 80 dark).
 val DocenteVerde40 = Color(0xFF2C694D)
 val DocenteVerde80 = Color(0xFF95D4B2)
-val DocenteTeal40 = Color(0xFF006A6A)
-val DocenteTeal80 = Color(0xFF72D6D6)
 
 // "Docente verificado" badge: its own green container (secondaryContainer is now the selection blue).
 val VerificadoContenedor = Color(0xFFB0F1CD)

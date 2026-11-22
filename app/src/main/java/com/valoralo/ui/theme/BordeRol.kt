@@ -9,11 +9,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.valoralo.domain.model.Rol
 
-/** Candidates for the Docente colour (1.0.8): it must not be the brand blue of buttons and links. */
-enum class ColorDocente { VERDE, TEAL }
-
-/** Chosen with the before/after captures (docs/diseno). */
-val PROPUESTA_DOCENTE = ColorDocente.VERDE
 
 /**
  * Border of a review card by the author's role: Docente green (1.0.8; was the brand blue), Estudiante
@@ -21,11 +16,9 @@ val PROPUESTA_DOCENTE = ColorDocente.VERDE
  * the card (and the verified badge stays). Docente and Estudiante reach ≥ 4.5:1 against the card surfaces
  * in light and dark (WCAG asks 3:1 for borders, 4.5:1 for the carousel's role label).
  */
-fun colorBordeRol(rol: Rol, oscuro: Boolean, docente: ColorDocente = PROPUESTA_DOCENTE): Color = when (rol) {
-    Rol.DOCENTE -> when (docente) {
-        ColorDocente.VERDE -> if (oscuro) DocenteVerde80 else DocenteVerde40
-        ColorDocente.TEAL -> if (oscuro) DocenteTeal80 else DocenteTeal40
-    }
+fun colorBordeRol(rol: Rol, oscuro: Boolean): Color = when (rol) {
+    // Green, chosen on 22/11/2026 over teal (docs/diseno/antes-despues-1.0.8/00-color-docente-*).
+    Rol.DOCENTE -> if (oscuro) DocenteVerde80 else DocenteVerde40
     Rol.ESTUDIANTE -> if (oscuro) Melocoton80 else Terracota40
     Rol.OTRO -> if (oscuro) NeutroVar30 else NeutroVar80 // = outlineVariant, the default card border
 }
