@@ -65,6 +65,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.text.style.TextOverflow
 import com.valoralo.domain.usecase.MIN_RESENAS_FIABLE
+import com.valoralo.domain.usecase.textoResenas
 import com.valoralo.ui.components.BotonComparar
 import com.valoralo.ui.components.EstadoVacio
 import kotlinx.coroutines.launch
@@ -483,15 +484,27 @@ private fun NotasPorDepartamento(departamentos: List<Pair<String, StatsDepartame
     Seccion("Profesorado por departamento") {
         departamentos.forEach { (nombre, stats) ->
             val pocas = stats.n < MIN_RESENAS_FIABLE
-            BarraNota(nombre, stats.media, detalle = if (pocas) "(${stats.n} · pocas reseñas)" else "(${stats.n})", atenuada = pocas)
+            BarraNota(
+                nombre, stats.media, detalle = "(${stats.n})", atenuada = pocas,
+                descripcion = "$nombre: ${formatearNota(stats.media)} de 5, ${textoResenas(stats.n)}" + if (pocas) ", pocas reseñas" else "",
+            )
+        }
+        if (departamentos.any { it.second.n < MIN_RESENAS_FIABLE }) {
+            Text(
+                "En gris, departamentos con menos de $MIN_RESENAS_FIABLE reseñas: su nota aún es poco fiable.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 8.dp),
+            )
         }
     }
 }
 
 @Composable
-private fun BarraNota(etiqueta: String, nota: Double?, detalle: String? = null, atenuada: Boolean = false) {
+private fun BarraNota(etiqueta: String, nota: Double?, detalle: String? = null, atenuada: Boolean = false, descripcion: String? = null) {
     val colorTexto = if (atenuada) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-    Column(Modifier.fillMaxWidth().semantics(mergeDescendants = true) {}) {
+    val semantica = if (descripcion != null) Modifier.clearAndSetSemantics { contentDescription = descripcion } else Modifier.semantics(mergeDescendants = true) {}
+    Column(Modifier.fillMaxWidth().then(semantica)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(etiqueta, style = MaterialTheme.typography.bodyMedium, color = colorTexto, modifier = Modifier.weight(1f))
             Text(formatearNota(nota), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = colorTexto)
